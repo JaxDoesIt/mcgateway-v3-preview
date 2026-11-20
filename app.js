@@ -23,7 +23,19 @@
     node.textContent=message;node.classList.add('visible');
     clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),3100);
   }
-  function setAll(selector,value) { $$(selector).forEach(el=>{ el.textContent=String(value); if(el.matches('[data-stat]')) el.classList.toggle('is-placeholder', !/^[\d,]+$/.test(String(value))); }); }
+  function setAll(selector,value) {
+    const label=String(value);
+    $(selector).forEach(el=>{
+      const useReel=el.matches('[data-stat],[data-recent],[data-live="hubPlayers"]') && Boolean(window.MCGatewayRoll);
+      if(useReel){
+        const valid=/^[0-9][0-9,]*$/.test(label);
+        const num=valid?Number(label.replace(/,/g,'')):NaN;
+        if(Number.isSafeInteger(num)&&num>=0)window.MCGatewayRoll.set(el,num);
+        else window.MCGatewayRoll.clear(el,label);
+      }else el.textContent=label;
+      if(el.matches('[data-stat]'))el.classList.toggle('is-placeholder', !/^[0-9,]+$/.test(label));
+    });
+  }
   function relative(iso) {
     const at=time(iso);if (!Number.isFinite(at)) return 'Unknown';
     const seconds=Math.max(0,Math.floor((Date.now()-at)/1000));
@@ -111,13 +123,13 @@
       const fresh=age>=-60000 && age<=180000;
       if(!fresh) {
         $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
-        setAll('#summaryFreshness','Last published totals: '+new Date(data.generatedAt).toLocaleString()+'. Status freshness could not be confirmed.');
-      } else setAll('#summaryFreshness',previewDemo?.isDemo('summary') ? 'SIMULATED totals for design testing, not live data.' : 'Public Warehouse totals · Updated '+relative(data.generatedAt)+'.');
+        setAll('#summaryFreshness','Last updated '+new Date(data.generatedAt).toLocaleString()+'. Current status could not be confirmed.');
+      } else setAll('#summaryFreshness',previewDemo?.isDemo('summary') ? 'Preview numbers only. Not actual statistics.' : 'Updated '+relative(data.generatedAt)+'.');
     } catch(e) {
       $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
       setAll('[data-live]','Unavailable');
       $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unavailable';el.dataset.status='checking';});
-      setAll('#summaryFreshness','Live totals are temporarily unavailable. See mcgateway.net/statistics for the official published dashboard.');
+      setAll('#summaryFreshness','Statistics are temporarily unavailable. See mcgateway.net/statistics for the latest numbers.');
     }
   }
 
@@ -134,8 +146,8 @@
     if(!fleet)return;
     for(const k of ['available','nearCapacity','full','offline','checking'])setAll(`[data-fleet-stat="${k}"]`,format(fleet.counts[k]));
     setAll('[data-bot-count]',format(fleet.counts.total));
-    setAll('[data-fleet-updated]',previewDemo?.isDemo('bots') ? 'SIMULATED roster for design review.' : 'Fleet checked '+relative(fleet.generatedAt)+'.');
-    const el=$('fleetFreshness');if(el)el.textContent=previewDemo?.isDemo('bots') ? 'DEMO BOT DATA: Friend counts, activity and availability are examples only. Check mcgateway.net for actual status.' : 'Last public fleet update '+new Date(fleet.generatedAt).toLocaleTimeString()+'.';
+    setAll('[data-fleet-updated]',previewDemo?.isDemo('bots') ? 'Preview bots only. Not actual availability.' : 'Fleet checked '+relative(fleet.generatedAt)+'.');
+    const el=$('fleetFreshness');if(el)el.textContent=previewDemo?.isDemo('bots') ? 'Preview bots only. For real availability, visit mcgateway.net/bots.' : 'Last updated '+new Date(fleet.generatedAt).toLocaleTimeString()+'.';
   }
   function applyBotWidgets() {
     for(const widget of $$('[data-live-bot-widget]')) {
@@ -192,8 +204,8 @@
       $$('[data-bot-copy]').forEach(el=>{el.disabled=true;el.dataset.gamertag='';});
       setAll('[data-fleet-stat]','—');
       setAll('[data-fleet-updated]','Bot availability cannot be verified right now.');
-      const note=$('fleetFreshness');if(note)note.textContent='The public bot service could not be reached. No bots are being recommended until fresh data is available.';
-      if(hasRoster)$('botRoster').innerHTML='<div class="loading-panel">Live bot availability is temporarily unavailable. Refresh to try again, or use the public bot list on mcgateway.net.</div>';
+      const note=$('fleetFreshness');if(note)note.textContent='Bot availability could not be verified. Please try again shortly.';
+      if(hasRoster)$('botRoster').innerHTML='<div class="loading-panel">Bot availability is temporarily unavailable. Refresh to try again, or check mcgateway.net/bots.</div>';
     }
   }
   $$('[data-bot-copy]').forEach(button=>button.addEventListener('click',async()=>{
@@ -201,7 +213,7 @@
     const ok=await copyText(gamertag);toast(ok?gamertag+' copied to clipboard.':`Gamertag: ${gamertag}. You can enter it manually in Minecraft.`);
   }));
   $('botSort')?.addEventListener('change',e=>{sort=e.target.value;renderRoster();});
-  $('refreshFleet')?.addEventListener('click',()=>{toast('Checking the latest public bot status…');updateFleet();});
+  $('refreshFleet')?.addEventListener('click',()=>{toast('Checking bot availability…');updateFleet();});
   $('refreshBotChoice')?.addEventListener('click',()=>{
     if(!fleet){updateFleet();return;}
     const next=recommended(fleet,chosen);if(next)chosen=next.gamertag;
@@ -213,7 +225,7 @@
     try{
       const data=validateRecent(await fetchJSON('statistics'));
       ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
-      setAll('#recentFreshness',previewDemo?.isDemo('statistics') ? 'SIMULATED recent activity for layout testing, not real transfers.' : 'Recent Warehouse aggregates · Updated '+relative(data.generatedAt)+'.');
+      setAll('#recentFreshness',previewDemo?.isDemo('statistics') ? 'Preview numbers only. Not actual transfer activity.' : 'Updated '+relative(data.generatedAt)+'.');
     }catch(e){setAll('[data-recent]','Unavailable');setAll('#recentFreshness','Recent transfer totals cannot be retrieved right now.');}
   }
   function refresh(){updateSummary();updateFleet();updateRecent();}
