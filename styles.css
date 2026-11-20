@@ -376,3 +376,17 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 
 /* Loading and unavailable totals should fit narrow screens without shrinking verified numbers. */
 .ledger-number.is-placeholder{font-size:clamp(18px,2.4vw,26px);letter-spacing:-.025em;overflow-wrap:anywhere}
+
+
+/* Live statistics: slot-machine digit reels, derived from the existing MCGateway counter style. */
+.mcg-rolling-number{white-space:nowrap;font-variant-numeric:tabular-nums}
+.rolling-digit{display:inline-block;width:.62em;height:1em;line-height:1em;overflow:hidden;vertical-align:top}
+.rolling-digit.static{overflow:visible}
+.rolling-separator{display:inline-block;width:.27em;line-height:1em;vertical-align:top}
+.digit-track{display:flex;flex-direction:column;transform:translateY(0);transition-property:transform;transition-timing-function:cubic-bezier(.42,0,.58,1);will-change:transform}
+.digit-cell{display:block;height:1em;line-height:1em}
+.rolling-digit.blur-spin{animation:mcgDigitBlur 1500ms cubic-bezier(.42,0,.58,1) both}
+.mcg-number-updated{animation:mcgStatGlow 850ms ease both}
+@keyframes mcgDigitBlur{0%,100%{filter:blur(0);opacity:1}20%{filter:blur(.4px);opacity:.96}50%{filter:blur(1px);opacity:.86}82%{filter:blur(.3px);opacity:.96}}
+@keyframes mcgStatGlow{0%,100%{text-shadow:none}45%{text-shadow:0 0 12px rgba(121,219,201,.66)}}
+@media(prefers-reduced-motion:reduce){.digit-track{transition:none!important}.rolling-digit.blur-spin,.mcg-number-updated{animation:none!important}}
