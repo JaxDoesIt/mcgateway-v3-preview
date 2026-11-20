@@ -10,6 +10,7 @@
   // GitHub Pages serves static files only. Read public data directly when allowed by CORS.
   // Other hosts preserve the Cloudflare Worker proxy fallback behavior.
   const isStaticPreview = location.protocol === 'file:' || location.hostname.endsWith('.github.io');
+  const previewDemo = isStaticPreview ? window.MCGatewayPreviewDemo : null;
   const ENDPOINTS = {
     summary: isStaticPreview ? ['https://api.mcgateway.net/v1/public/summary'] : ['/api/summary','https://api.mcgateway.net/v1/public/summary'],
     bots: isStaticPreview ? ['https://api.mcgateway.net/v1/public/bots'] : ['/api/bots','https://api.mcgateway.net/v1/public/bots'],
@@ -32,6 +33,7 @@
     return `${Math.floor(seconds/86400)}d ago`;
   }
   async function fetchJSON(kind) {
+    if(previewDemo?.forceDemo){previewDemo.setSource(kind,true);return previewDemo.sample(kind);}
     let lastError;
     for(const url of ENDPOINTS[kind]) {
       const controller = new AbortController();
@@ -39,9 +41,15 @@
       try {
         const response=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
         if(!response.ok)throw new Error('HTTP '+response.status);
-        return await response.json();
+        const data=await response.json();
+        if(previewDemo){
+          ({summary:validateSummary,bots:validateFleet,statistics:validateRecent})[kind](data);
+          previewDemo.setSource(kind,false);
+        }
+        return data;
       } catch(e){lastError=e;}finally{clearTimeout(stop);}
     }
+    if(previewDemo){previewDemo.setSource(kind,true);return previewDemo.sample(kind);}
     throw lastError || new Error('Unable to reach the public service');
   }
   function validateSummary(data) {
@@ -104,7 +112,7 @@
       if(!fresh) {
         $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
         setAll('#summaryFreshness','Last published totals: '+new Date(data.generatedAt).toLocaleString()+'. Status freshness could not be confirmed.');
-      } else setAll('#summaryFreshness','Public Warehouse totals · Updated '+relative(data.generatedAt)+'.');
+      } else setAll('#summaryFreshness',previewDemo?.isDemo('summary') ? 'SIMULATED totals for design testing, not live data.' : 'Public Warehouse totals · Updated '+relative(data.generatedAt)+'.');
     } catch(e) {
       $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
       setAll('[data-live]','Unavailable');
@@ -126,17 +134,17 @@
     if(!fleet)return;
     for(const k of ['available','nearCapacity','full','offline','checking'])setAll(`[data-fleet-stat="${k}"]`,format(fleet.counts[k]));
     setAll('[data-bot-count]',format(fleet.counts.total));
-    setAll('[data-fleet-updated]','Fleet checked '+relative(fleet.generatedAt)+'.');
-    const el=$('fleetFreshness');if(el)el.textContent='Last public fleet update '+new Date(fleet.generatedAt).toLocaleTimeString()+'.';
+    setAll('[data-fleet-updated]',previewDemo?.isDemo('bots') ? 'SIMULATED roster for design review.' : 'Fleet checked '+relative(fleet.generatedAt)+'.');
+    const el=$('fleetFreshness');if(el)el.textContent=previewDemo?.isDemo('bots') ? 'DEMO BOT DATA: Friend counts, activity and availability are examples only. Check mcgateway.net for actual status.' : 'Last public fleet update '+new Date(fleet.generatedAt).toLocaleTimeString()+'.';
   }
   function applyBotWidgets() {
     for(const widget of $$('[data-live-bot-widget]')) {
       const bot=fleet?.bots.find(b=>b.gamertag===chosen);
       const safe=bot?.status==='available';
       const name=widget.querySelector('[data-bot-name]');if(name)name.textContent=bot?bot.gamertag:fleet?'No available bot':'Checking availability…';
-      const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):fleet?'Visit the fleet below to check accounts.':'Reading official fleet data…';
+      const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=previewDemo?.isDemo('bots') ? 'Example bot, example status. Visit mcgateway.net/bots for real availability.' : bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):fleet?'Visit the fleet below to check accounts.':'Reading official fleet data…';
       const badge=widget.querySelector('[data-bot-state]');if(badge){badge.textContent=bot?escapeStatus[bot.status].toUpperCase():'CHECKING';badge.dataset.status=bot?.status||'checking';}
-      const button=widget.querySelector('[data-bot-copy]');if(button){button.disabled=!safe;button.dataset.gamertag=safe?bot.gamertag:'';}
+      const button=widget.querySelector('[data-bot-copy]');if(button){button.disabled=!safe || Boolean(previewDemo?.isDemo('bots'));button.dataset.gamertag=safe&&!previewDemo?.isDemo('bots')?bot.gamertag:'';if(previewDemo?.isDemo('bots'))button.title='Demo data: check official bot availability before copying';}
     }
   }
   function renderRoster() {
@@ -160,6 +168,7 @@
       if(bot.gamertag===chosen)row.classList.add('is-selected');
       const top=document.createElement('div');top.className='fleet-entry-top';
       const heading=document.createElement('h3');heading.textContent=bot.gamertag;
+      if(previewDemo?.isDemo('bots')){const avatar=document.createElement('span');avatar.className='demo-bot-avatar';avatar.textContent='MG';avatar.setAttribute('aria-hidden','true');heading.prepend(avatar);heading.style.display='flex';heading.style.alignItems='center';heading.style.gap='8px';}
       const state=document.createElement('span');state.className='fleet-status';state.textContent=escapeStatus[bot.status];state.dataset.status=bot.status;
       top.append(heading,state);
       const meta=document.createElement('p');meta.textContent=bot.friends==null?'Friend capacity not confirmed':`${format(bot.friends)} of ${format(bot.capacity)} friends`;
@@ -174,7 +183,7 @@
     if(!hasBotWidgets&&!hasRoster)return;
     try{
       fleet=validateFleet(await fetchJSON('bots'));
-      if(chosen===null)chosen=recommended(fleet)?.gamertag||null;
+      if(chosen===null || !fleet.bots.some(b=>b.gamertag===chosen&&b.status==='available'))chosen=recommended(fleet)?.gamertag||null;
       applyFleetStats();applyBotWidgets();renderRoster();
     }catch(e){
       fleet=null;chosen=null;
@@ -204,7 +213,7 @@
     try{
       const data=validateRecent(await fetchJSON('statistics'));
       ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
-      setAll('#recentFreshness','Recent Warehouse aggregates · Updated '+relative(data.generatedAt)+'.');
+      setAll('#recentFreshness',previewDemo?.isDemo('statistics') ? 'SIMULATED recent activity for layout testing, not real transfers.' : 'Recent Warehouse aggregates · Updated '+relative(data.generatedAt)+'.');
     }catch(e){setAll('[data-recent]','Unavailable');setAll('#recentFreshness','Recent transfer totals cannot be retrieved right now.');}
   }
   function refresh(){updateSummary();updateFleet();updateRecent();}
