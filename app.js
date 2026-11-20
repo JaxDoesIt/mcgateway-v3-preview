@@ -12,9 +12,9 @@
   const isStaticPreview = location.protocol === 'file:' || location.hostname.endsWith('.github.io');
   const previewDemo = isStaticPreview ? window.MCGatewayPreviewDemo : null;
   const ENDPOINTS = {
-    summary: isStaticPreview ? ['https://api.mcgateway.net/v1/public/summary'] : ['/api/summary','https://api.mcgateway.net/v1/public/summary'],
-    bots: isStaticPreview ? ['https://api.mcgateway.net/v1/public/bots'] : ['/api/bots','https://api.mcgateway.net/v1/public/bots'],
-    statistics: isStaticPreview ? ['https://api.mcgateway.net/v1/public/statistics'] : ['/api/statistics','https://api.mcgateway.net/v1/public/statistics']
+    summary: isStaticPreview ? ['https://mcgateway.net/api/summary'] : ['/api/summary','https://api.mcgateway.net/v1/public/summary'],
+    bots: isStaticPreview ? ['https://mcgateway.net/api/bots'] : ['/api/bots','https://api.mcgateway.net/v1/public/bots'],
+    statistics: isStaticPreview ? ['https://mcgateway.net/api/statistics'] : ['/api/statistics','https://api.mcgateway.net/v1/public/statistics']
   };
   let toastTimer = null;
   const time = iso => Date.parse(iso || '');
