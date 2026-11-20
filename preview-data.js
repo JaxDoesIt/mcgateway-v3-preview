@@ -12,20 +12,20 @@
   const friendCounts = [518,632,372,931,461,727,1000,603,580,251,956,687,803,549,919,366];
 
   const style = document.createElement('style');
-  style.textContent = '.preview-data-notice{position:relative;z-index:1001;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px 16px;padding:9px 15px;text-align:center;background:#183b43;color:#fff5db;border-bottom:2px solid #6ca8a0;font:600 12px/1.4 system-ui,-apple-system,sans-serif}.preview-data-notice strong{color:#f4db9d;letter-spacing:.06em}.preview-data-notice span{font-weight:400}.preview-data-notice button{border:1px solid #a6d0c6;background:#224e52;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;font:600 11px system-ui,-apple-system,sans-serif}.preview-data-notice button:hover{background:#326869}.fleet-entry .demo-bot-avatar{display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:7px;background:linear-gradient(145deg,#215263,#388c7a);color:#f6e8bc;font:800 11px/1 system-ui,-apple-system,sans-serif;border:1px solid #6fa7a0}';
+  style.textContent = '.preview-data-notice{position:relative;z-index:1001;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px 16px;padding:9px 15px;text-align:center;background:#183b43;color:#fff5db;border-bottom:2px solid #6ca8a0;font:600 12px/1.4 system-ui,-apple-system,sans-serif}.preview-data-notice[hidden]{display:none!important}.preview-data-notice strong{color:#f4db9d;letter-spacing:.06em}.preview-data-notice span{font-weight:400}.preview-data-notice button{border:1px solid #a6d0c6;background:#224e52;color:white;padding:6px 10px;border-radius:6px;cursor:pointer;font:600 11px system-ui,-apple-system,sans-serif}.preview-data-notice button:hover{background:#326869}.fleet-entry .demo-bot-avatar{display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:7px;background:linear-gradient(145deg,#215263,#388c7a);color:#f6e8bc;font:800 11px/1 system-ui,-apple-system,sans-serif;border:1px solid #6fa7a0}';
   document.head.append(style);
   const banner = document.createElement('div');
   banner.className = 'preview-data-notice';
   banner.setAttribute('role', 'status');
   banner.setAttribute('aria-live', 'polite');
   const lead = document.createElement('strong');
-  lead.textContent = 'V3 DESIGN PREVIEW';
+  lead.textContent = 'DEMO DATA';
   const message = document.createElement('span');
   const switcher = document.createElement('button');
   switcher.type = 'button';
   switcher.addEventListener('click', () => {
-    forced = !forced;
-    try { sessionStorage.setItem(storageKey, forced ? '1' : '0'); } catch {}
+    forced = false;
+    try { sessionStorage.setItem(storageKey, '0'); } catch {}
     location.reload();
   });
   banner.append(lead, message, switcher);
@@ -34,12 +34,13 @@
   function showSource() {
     const anyDemo = [...sources.values()].includes('demo');
     const anyLive = [...sources.values()].includes('live');
-    if (forced) message.textContent = 'SIMULATED DATA ONLY: Example bots and statistics, not real availability.';
-    else if (anyDemo && anyLive) message.textContent = 'MIXED DATA: Some figures are LIVE; others are clearly marked examples. Do not rely on preview bot availability.';
-    else if (anyDemo) message.textContent = 'SIMULATED DATA: The public API is unavailable here. Bot statuses and numbers are examples, NOT live.';
-    else if (anyLive) message.textContent = 'LIVE PUBLIC DATA: Preview design only. Official website is mcgateway.net.';
-    else message.textContent = 'Checking the live public API; example data will appear if it cannot be reached.';
-    switcher.textContent = forced ? 'Try live API' : 'Show demo data';
+    // When the page is fully connected, no technical preview banner is needed.
+    banner.hidden = !forced && !anyDemo;
+    if (forced) message.textContent = 'Sample bots and statistics only. These numbers do not reflect actual availability.';
+    else if (anyDemo && anyLive) message.textContent = 'Some information is simulated because a live connection failed. Verify availability on mcgateway.net.';
+    else if (anyDemo) message.textContent = 'Showing example bots and numbers while the connection is unavailable.';
+    else message.textContent = '';
+    switcher.textContent = forced ? 'Use real data' : 'Retry connection';
   }
   function source(kind, demo) { sources.set(kind, demo ? 'demo' : 'live'); showSource(); }
   function sample(kind) {
