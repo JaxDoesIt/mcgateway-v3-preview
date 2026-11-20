@@ -49,7 +49,7 @@
       element.textContent=format(value);element.setAttribute('aria-label',format(value));
       state.displayed=value;state.animating=false;return;
     }
-    const toDigits=String(value),oldDigits=String(from).padStart(toDigits.length,'0');
+    const toDigits=String(value),oldDigits=String(from).padStart(toDigits.length,'0').slice(-toDigits.length);
     const changed=value!==from;
     const parts=[],fragment=document.createDocumentFragment();
     let index=0,maxDuration=0;
