@@ -158,29 +158,31 @@
 
   // Live summary: lifetime totals, Hub population, service condition.
   const hasSummary=$$('[data-stat], [data-live], [data-gateway-status]').length>0;
-  async function updateSummary() {
-    if(!hasSummary || document.hidden)return;
-    try {
-      const data=validateSummary(await fetchJSON('summary'));
-      const totals=data.totals;
-      for(const k of ['transfers','uniquePlayers','trackedServers'])setAll(`[data-stat="${k}"]`,format(totals[k]));
-      setAll('[data-live="hubPlayers"]',format(data.live.playersInHub));
-      setAll('[data-live="lastTransfer"]',Number.isFinite(time(data.live.lastTransferAt))?relative(data.live.lastTransferAt):'Not available');
-      const state=typeof data.status.state==='string'?data.status.state:'checking';
-      const labels={online:'Online',delayed:'Delayed',lost_signal:'Signal unavailable',offline:'Offline',checking:'Checking'};
-      $$('[data-gateway-status]').forEach(el=>{el.textContent=labels[state]||'Checking';el.dataset.status=state;});
-      const age=Date.now()-time(data.generatedAt);
-      const fresh=age>=-60000 && age<=180000;
-      if(!fresh) {
-        $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
-        setAll('#summaryFreshness','Last updated '+new Date(data.generatedAt).toLocaleString()+'. Current status could not be confirmed.');
-      } else setAll('#summaryFreshness',previewDemo?.isDemo('summary') ? 'Preview numbers only. Not actual statistics.' : 'Updated '+relative(data.generatedAt)+'.');
-    } catch(e) {
-      $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
-      setAll('[data-live]','Unavailable');
+  function renderSummary(raw) {
+    const data=validateSummary(raw);
+    for(const k of ['transfers','uniquePlayers','trackedServers'])setAll(`[data-stat="${k}"]`,format(data.totals[k]));
+    setAll('[data-live="hubPlayers"]',format(data.live.playersInHub));
+    setAll('[data-live="lastTransfer"]',Number.isFinite(time(data.live.lastTransferAt))?relative(data.live.lastTransferAt):'Not available');
+    const state=typeof data.status.state==='string'?data.status.state:'checking';
+    const labels={online:'Online',delayed:'Delayed',lost_signal:'Signal unavailable',offline:'Offline',checking:'Checking'};
+    const age=Date.now()-time(data.generatedAt),fresh=age>=-60000&&age<=180000;
+    const verified=isLive('summary')&&fresh;
+    $$('[data-gateway-status]').forEach(el=>{el.textContent=verified?(labels[state]||'Checking'):'Status unverified';el.dataset.status=verified?state:'checking';});
+    setAll('#summaryFreshness',!isLive('summary')
+      ? 'Connection delayed. Last verified '+verifiedTime('summary')+'.'
+      : fresh?'Updated '+relative(data.generatedAt)+'.'
+      :'Last updated '+new Date(data.generatedAt).toLocaleString()+'. Current status could not be confirmed.');
+  }
+  let summaryBusy=false;
+  async function updateSummary(){
+    if(!hasSummary||document.hidden||summaryBusy)return;
+    summaryBusy=true;
+    try{renderSummary(await fetchJSON('summary'));}
+    catch(error){
+      setAll('#summaryFreshness','Could not connect to live statistics. Retrying automatically.');
       $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unavailable';el.dataset.status='checking';});
-      setAll('#summaryFreshness','Statistics are temporarily unavailable. See mcgateway.net/statistics for the latest numbers.');
-    }
+      $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
+    }finally{summaryBusy=false;}
   }
 
   // Read-only current bot fleet with session-locked recommendation.
