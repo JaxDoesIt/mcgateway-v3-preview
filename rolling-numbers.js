@@ -37,6 +37,7 @@ function startCounterAnimation(element) { const state = getCounterState(element)
   function set(element, value) {
     if (!element || !Number.isSafeInteger(value) || value < 0) return;
     // The initialization and update flow is the same as production applyHeadlineValue.
+    element.classList.add('mcg-rolling-number');
     const state = getCounterState(element);
     state.target = value;
     if (state.displayed === null) {
@@ -66,6 +67,7 @@ function startCounterAnimation(element) { const state = getCounterState(element)
     delete element.dataset.value;
     delete element.dataset.liveInitialized;
     element.removeAttribute('aria-label');
+    element.classList.remove('mcg-rolling-number');
     element.textContent = String(label);
   }
 
