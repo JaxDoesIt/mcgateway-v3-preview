@@ -546,28 +546,98 @@
   });
 
     const recentExists=$$('[data-recent]').length>0;
-  function renderRecent(raw) {
-    const data=validateRecent(raw);
-    ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
-    for(const [key,period,unit] of [['last24Hours',24,'hour'],['last7Days',7,'day'],['last30Days',30,'day']]){
-      const avg=Math.round(data.transfers[key].transfers/period);
-      setAll(`[data-recent-average="${key}"]`,format(avg)+' transfers per '+unit+' on average');
+  // Use the same Central Time calendar as the public statistics API.
+  // The hourly snapshot changes on UTC hour boundaries, which are also
+  // precisely the top of every local hour in America/Chicago.
+  const RECENT_HOUR_MS=60*60*1000;
+  const RECENT_PERIODS=[
+    {key:'last24Hours',divisor:24,unit:'hour',kind:'hourly'},
+    {key:'last7Days',divisor:7,unit:'day',kind:'daily'},
+    {key:'last30Days',divisor:30,unit:'day',kind:'daily'}
+  ];
+  const RECENT_BUCKET_CACHE='mcgateway-v3-period-stats-v1:';
+  const centralDateFormatter=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'
+  });
+  const recentSnapshots=new Map();
+  function recentPeriodKey(period,ms=Date.now()){
+    if(period.kind==='hourly')return 'hour:'+Math.floor(ms/RECENT_HOUR_MS);
+    const parts=Object.fromEntries(centralDateFormatter.formatToParts(new Date(ms))
+      .filter(part=>['year','month','day'].includes(part.type))
+      .map(part=>[part.type,part.value]));
+    return 'day:'+parts.year+'-'+parts.month+'-'+parts.day;
+  }
+  function showRecentPeriod(period,value){
+    setAll('[data-recent="'+period.key+'"]',format(value));
+    setAll('[data-recent-average="'+period.key+'"]',
+      format(Math.round(value/period.divisor))+' transfers per '+period.unit+' on average');
+  }
+  function hydrateRecentIntervals(){
+    if(!recentExists)return;
+    const now=Date.now();
+    for(const period of RECENT_PERIODS){
+      try{
+        const data=JSON.parse(localStorage.getItem(RECENT_BUCKET_CACHE+period.key)||'null');
+        if(!data||data.bucket!==recentPeriodKey(period,now)||!numeric(data.value)||
+           !Number.isFinite(data.savedAt)||data.savedAt>now+60000)continue;
+        recentSnapshots.set(period.key,{bucket:data.bucket,value:data.value});
+        showRecentPeriod(period,data.value);
+      }catch{}
     }
-    setAll('#recentFreshness',isLive('statistics')?'Updated '+relative(data.generatedAt)+'.':'Connection delayed. Last verified '+verifiedTime('statistics')+'.');
+  }
+  function recentNeedsRefresh(now=Date.now()){
+    return RECENT_PERIODS.some(period=>
+      recentSnapshots.get(period.key)?.bucket!==recentPeriodKey(period,now));
+  }
+  function renderRecent(raw){
+    const data=validateRecent(raw);
+    // A saved API fallback or a snapshot generated before the hour/day boundary
+    // must not lock an old count into the NEW reporting period.
+    if(!isLive('statistics'))return false;
+    const now=Date.now(),generated=time(data.generatedAt);
+    let changed=false;
+    for(const period of RECENT_PERIODS){
+      const bucket=recentPeriodKey(period,now);
+      if(recentSnapshots.get(period.key)?.bucket===bucket)continue;
+      if(recentPeriodKey(period,generated)!==bucket)continue;
+      const value=data.transfers[period.key].transfers;
+      recentSnapshots.set(period.key,{bucket,value});
+      try{localStorage.setItem(RECENT_BUCKET_CACHE+period.key,
+        JSON.stringify({bucket,value,savedAt:now}));}catch{}
+      showRecentPeriod(period,value);
+      changed=true;
+    }
+    return changed;
   }
   let recentBusy=false;
-  async function updateRecent() {
-    if(!recentExists||document.hidden||recentBusy)return;
+  async function updateRecent(){
+    if(!recentExists||document.hidden||recentBusy||!recentNeedsRefresh())return;
     recentBusy=true;
     try{renderRecent(await fetchJSON('statistics'));}
     catch(error){
-      // Never replace a previously verified statistic with a fabricated or blank number.
-      document.querySelectorAll('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
-      document.querySelectorAll('[data-recent-average]').forEach(el=>{if(el.textContent.includes('Checking'))el.textContent='Daily average unavailable';});
-      setAll('#recentFreshness','Could not connect to recent activity. Retrying automatically.');
+      // A failed request leaves already-captured values untouched.
+      for(const period of RECENT_PERIODS){
+        if(recentSnapshots.get(period.key)?.bucket===recentPeriodKey(period))continue;
+        setAll('[data-recent="'+period.key+'"]','Unavailable');
+        setAll('[data-recent-average="'+period.key+'"]','Average unavailable');
+      }
     }finally{recentBusy=false;}
   }
-  function hydrateVerifiedData() {
+  // Schedule at absolute hour boundaries rather than an interval measured
+  // from page load. Check Central Time date changes at each boundary so DST
+  // and browsers outside Central Time do not shift the midnight refresh.
+  let recentBoundaryTimer=null;
+  function scheduleRecentBoundary(){
+    if(!recentExists)return;
+    clearTimeout(recentBoundaryTimer);
+    const now=Date.now();
+    const next=(Math.floor(now/RECENT_HOUR_MS)+1)*RECENT_HOUR_MS;
+    recentBoundaryTimer=setTimeout(()=>{
+      if(!document.hidden)updateRecent();
+      scheduleRecentBoundary();
+    },Math.max(30,next-now+25));
+  }
+    function hydrateVerifiedData() {
     // Show only previously verified values immediately on page refresh.
     for(const kind of ['summary','bots','statistics']) {
       const saved=lastVerified(kind);
@@ -576,7 +646,8 @@
       try {
         if(kind==='summary' && hasSummary)renderSummary(saved.data);
         if(kind==='bots' && (hasBotWidgets||hasRoster||hasFleetCount))renderFleet(saved.data);
-        if(kind==='statistics' && recentExists)renderRecent(saved.data);
+        // Recent totals use their own hour/day-locked snapshots, never an
+        // arbitrary cached API response from before the latest boundary.
       } catch(error) {
         // A bad cached snapshot must never stop independent live API requests.
         console.warn('Could not restore cached '+kind+' data; fetching live instead.', error);
@@ -585,11 +656,15 @@
   }
   function refresh(){updateSummary();updateFleet();updateRecent();}
   hydrateVerifiedData();
+  hydrateRecentIntervals();
   refresh();
+  scheduleRecentBoundary();
   // Keep request cadence modest; don't continue polling hidden tabs.
   setInterval(updateActivityClocks,1000);
   setInterval(()=>{if(!document.hidden)updateSummary();},10000);
   setInterval(()=>{if(!document.hidden)updateFleet();},12000);
+  // This interval only retries missing snapshots. Captured periods are
+  // frozen until the next top-of-hour or Central Time midnight boundary.
   setInterval(()=>{if(!document.hidden)updateRecent();},30000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 })();
