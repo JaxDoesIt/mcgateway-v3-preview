@@ -43,10 +43,13 @@
     const entry={data,savedAt:Date.now()};
     lastGood.set(kind,entry);
     try{localStorage.setItem(CACHE_KEY+kind,JSON.stringify(entry));}catch{}
-    resources[kind]={live:true,verifiedAt:entry.savedAt};
+    const age=Date.now()-Date.parse(data.generatedAt||'');
+    const freshBot=kind!=='bots'||(Number.isFinite(age)&&age>=-60000&&age<=180000);
+    resources[kind]={live:freshBot,verifiedAt:freshBot?entry.savedAt:Date.parse(data.generatedAt)};
   }
   function markCached(kind,entry) {
-    resources[kind]={live:false,verifiedAt:entry?.savedAt??null};
+    const generated=Date.parse(entry?.data?.generatedAt||'');
+    resources[kind]={live:false,verifiedAt:Number.isFinite(generated)?generated:(entry?.savedAt??null)};
   }
   const ENDPOINTS = {
     summary: isStaticPreview ? ['https://mcgateway.net/api/summary'] : ['/api/summary','https://api.mcgateway.net/v1/public/summary'],
@@ -96,7 +99,8 @@
           try{
             const response=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
             if(!response.ok)throw new Error('HTTP '+response.status);
-            const data=validator(kind,await response.json());
+            // A delayed bot snapshot is still genuine data, but never verified as current availability.
+            const data=validator(kind,await response.json(),kind==='bots');
             rememberVerified(kind,data);
             return data;
           }catch(error){lastError=error;}
