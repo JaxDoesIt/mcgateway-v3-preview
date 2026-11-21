@@ -319,7 +319,7 @@
       const name=widget.querySelector('[data-bot-name]');
       if(name)setIfChanged(name,bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…'));
       const heading=widget.querySelector('[data-bot-heading]');
-      if(heading)setIfChanged(heading,manuallySelected?'Your bot':'Recommended gamertag');
+      if(heading)setIfChanged(heading,manuallySelected?'Your bot':'Recommended bot');
       const help=widget.querySelector('[data-bot-help]');
       if(help)setIfChanged(help,!fleetVerified&&bot
         ? 'Last known details. Availability cannot be confirmed right now.'
@@ -389,10 +389,10 @@
         toast('Bot availability is not currently verified.');return;
       }
       chosen=bot.gamertag;manuallySelected=true;applyBotWidgets();renderRoster();
-      toast(bot.gamertag+' selected. Copy it here or at the top of the page.');
+      toast(bot.gamertag+' selected. Copy its name here or at the top of the page.');
     });
     const copy=document.createElement('button');copy.className='outline-small roster-copy';
-    copy.type='button';copy.textContent='Copy gamertag';
+    copy.type='button';copy.textContent='Copy bot name';
     copy.addEventListener('click',()=>copyGamertag(bot.gamertag,copy,copy));
     actions.append(select,copy);row.append(top,meta,track,activity,actions);
     return {row,state,meta,fill,activity,select,copy};
@@ -411,7 +411,7 @@
     setIfChanged(card.select,isSelected?'Selected bot':'Select bot');
     card.copy.disabled=!safe;
     card.copy.title=safe?'Copy '+bot.gamertag:'Availability is not currently verified';
-    if(!safe&&card.copy.textContent==='Copied!')setIfChanged(card.copy,'Copy gamertag');
+    if(!safe&&card.copy.textContent==='Copied!')setIfChanged(card.copy,'Copy bot name');
   }
   function renderRoster() {
     const roster=$('botRoster');
