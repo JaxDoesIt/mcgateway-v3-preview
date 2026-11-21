@@ -487,3 +487,19 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
   .bots-page .fleet-status-help{max-width:100%}
   .bots-page .bots-closing-actions{flex-direction:column;gap:15px}
 }
+
+
+/* Small live activity details and quiet, but visible unavailable bot cards. */
+.bots-page .inline-bot-actions .bot-activity{display:block;color:#a8c7c1;font-size:12px;line-height:1.45;margin-top:-4px}
+.home-page .bot-identity .bot-activity{display:block;font-size:10px;line-height:1.35;color:#99babc}
+.bots-page .fleet-entry[data-status="full"],
+.bots-page .fleet-entry[data-status="offline"],
+.bots-page .fleet-entry[data-status="near_capacity"],
+.bots-page .fleet-entry[data-status="checking"]{opacity:.77;filter:saturate(.72)}
+.bots-page .fleet-entry.is-selected[data-status="full"],
+.bots-page .fleet-entry.is-selected[data-status="offline"],
+.bots-page .fleet-entry.is-selected[data-status="near_capacity"],
+.bots-page .fleet-entry.is-selected[data-status="checking"]{opacity:.85}
+.bots-page .fleet-entry{transition:opacity .2s ease,filter .2s ease}
+.bots-page .freshness-line{font-size:11px;color:#827965;margin:8px 0 0;line-height:1.5}
+.bots-page .body-note{font-size:12px;line-height:1.6;margin-top:20px;color:#625a4b}
