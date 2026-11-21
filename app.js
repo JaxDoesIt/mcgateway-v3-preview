@@ -98,9 +98,31 @@
     const days=Math.floor(hours/24);
     return days+' '+(days===1?'day':'days')+' ago';
   }
+  function renderLastTransferAge(at) {
+    // Keep the number and its smaller unit separate, like the Access Fleet count.
+    for(const el of $('[data-live="lastTransfer"]')) {
+      const number=el.querySelector('[data-transfer-age-number]');
+      const unit=el.querySelector('[data-transfer-age-unit]');
+      if(!number||!unit)continue;
+      if(!Number.isFinite(at)) {
+        number.textContent='...';
+        unit.textContent='Unavailable';
+        el.setAttribute('aria-label','Last transfer unavailable');
+        continue;
+      }
+      const seconds=Math.max(0,Math.floor((Date.now()-at)/1000));
+      let value=seconds, label=seconds===1?'second ago':'seconds ago';
+      if(seconds>=86400){value=Math.floor(seconds/86400);label=value===1?'day ago':'days ago';}
+      else if(seconds>=3600){value=Math.floor(seconds/3600);label=value===1?'hour ago':'hours ago';}
+      else if(seconds>=60){value=Math.floor(seconds/60);label=value===1?'minute ago':'minutes ago';}
+      const formatted=format(value);
+      if(number.textContent!==formatted)number.textContent=formatted;
+      if(unit.textContent!==label)unit.textContent=label;
+      el.setAttribute('aria-label','Last transfer '+formatted+' '+label);
+    }
+  }
   function updateActivityClocks() {
-    if(document.querySelector('[data-live="lastTransfer"]'))
-      setAll('[data-live="lastTransfer"]',elapsedDescription(lastTransferAt));
+    renderLastTransferAge(lastTransferAt);
     if(Number.isFinite(summaryGeneratedAt)) {
       const age=Date.now()-summaryGeneratedAt, fresh=age>=-60000&&age<=180000;
       setAll('#summaryFreshness',isLive('summary')&&fresh
@@ -215,7 +237,7 @@
     try{renderSummary(await fetchJSON('summary'));}
     catch(error){
       summaryGeneratedAt=NaN;lastTransferAt=NaN;
-      setAll('[data-live="lastTransfer"]','Unavailable');
+      renderLastTransferAge(NaN);
       setAll('#summaryFreshness','Could not connect to live statistics. Retrying automatically.');
       $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unavailable';el.dataset.status='checking';});
       $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
