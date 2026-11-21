@@ -438,3 +438,52 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 .home-page .ledger-bottom{justify-content:flex-end}
 .home-page .ledger-transfer .ledger-label{color:#a9c8c4}
 .home-page .ledger-transfer .ledger-label .icon{color:#69d1d4}
+
+
+/* Bots page: clearer controls, accessible card actions, and tidy mobile summary. */
+.bots-page .fleet-overview{margin-bottom:10px}
+.bots-page .fleet-overview-under{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:0 0 31px}
+.bots-page .fleet-summary{font-size:14px;color:#3d6251;font-weight:750;margin:6px 0}
+.bots-page .fleet-status-help{max-width:440px;color:#465e4b;font-size:12px;line-height:1.65}
+.bots-page .fleet-status-help summary{font-weight:750;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.bots-page .fleet-status-help p{margin:9px 0 0;padding:12px;background:#ece2c9;border:1px solid #cbb899;border-radius:7px}
+.bots-page .fleet-controls{gap:10px}
+.bots-page .fleet-controls label{font-size:13px}
+.bots-page .fleet-filter{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;background:#f3e6cf;border:1px solid #c5b18c;border-radius:7px;min-height:44px;cursor:pointer}
+.bots-page .fleet-filter input{width:16px;height:16px;accent-color:#246b63}
+.bots-page .fleet-entry{gap:12px}
+.bots-page .fleet-entry h3{font-size:20px}
+.bots-page .fleet-status{font-size:11px}
+.bots-page .fleet-entry p{font-size:13px;line-height:1.5}
+.bots-page .fleet-entry small{font-size:12px;line-height:1.4;min-height:0}
+.bots-page .fleet-entry-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:3px}
+.bots-page .fleet-entry .outline-small{margin:0;align-self:auto;min-height:40px;font-size:12px;padding:9px 11px}
+.bots-page .fleet-entry .roster-copy{border-color:#2d7b78;background:#e1efdc}
+.bots-page .fleet-entry .roster-copy:hover:not(:disabled){background:#c7e9d0}
+.bots-page .fleet-entry .roster-copy:disabled{background:#e9e1d1}
+.bots-page .fleet-empty[hidden]{display:none}
+.bots-page .fleet-empty{margin:0 0 20px}
+.bots-page .fleet-overview span{font-size:11px}
+.bots-page .inline-bot-actions strong{font-size:19px}
+.bots-page .inline-bot-widget p{font-size:14px}
+.bots-page .fleet-entry button:focus-visible,.bots-page .fleet-controls select:focus-visible,.bots-page .fleet-filter input:focus-visible{outline:3px solid #168f96;outline-offset:3px}
+.bots-page .bots-closing{padding:63px 22px 72px}
+.bots-page .bots-closing h2{font-size:clamp(37px,4.5vw,54px)}
+.bots-page .bots-closing-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:19px}
+.bots-page .bots-closing .action-primary{margin:0}
+.bots-page .bots-closing-help{color:#c5e4e0;display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:750;text-decoration:underline;text-underline-offset:4px}
+.bots-page .bots-closing-help .icon{width:16px;height:16px}
+@media(max-width:640px){
+  .bots-page .fleet-overview{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .bots-page .fleet-overview>div{grid-column:span 2;padding:16px 6px;border-bottom:1px solid #c0ab86}
+  .bots-page .fleet-overview>div:nth-child(3){border-right:0}
+  .bots-page .fleet-overview>div:nth-child(n+4){grid-column:span 3;border-bottom:0}
+  .bots-page .fleet-overview>div:last-child{border-right:0}
+  .bots-page .fleet-overview span{font-size:10px;letter-spacing:.025em}
+  .bots-page .fleet-entry h3{font-size:20px}
+  .bots-page .fleet-status{font-size:11px}
+  .bots-page .fleet-controls{align-items:stretch}
+  .bots-page .fleet-controls select{max-width:none}
+  .bots-page .fleet-status-help{max-width:100%}
+  .bots-page .bots-closing-actions{flex-direction:column;gap:15px}
+}

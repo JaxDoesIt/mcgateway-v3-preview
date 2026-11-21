@@ -247,66 +247,190 @@
   // Read-only current bot fleet with session-locked recommendation.
   const hasBotWidgets=$$('[data-live-bot-widget]').length>0;
   const hasRoster=Boolean($('botRoster'));
-  let fleet=null, chosen=null, sort='order', fleetVerified=false, fleetBusy=false;
-  const sortByIndex=bot=>{const m=bot.gamertag.match(/(\d+)$/);return m?Number(m[1]):99999;};
-  function recommended(fleet,exclude=null){
-    const preferred=fleet.bots.find(b=>b.gamertag===fleet.recommendedBot?.gamertag&&b.status==='available'&&b.gamertag!==exclude);
-    return preferred || fleet.bots.filter(b=>b.status==='available'&&b.gamertag!==exclude).sort((a,b)=>(a.friends??a.capacity)-(b.friends??b.capacity))[0] || null;
+  let fleet=null, chosen=null, sort=$('botSort')?.value||'order', availableOnly=false, fleetVerified=false, fleetBusy=false;
+  const rosterCards=new Map();
+  function botNumber(bot) {
+    const name=bot.gamertag.trim();
+    if(/^MCGateway$/i.test(name))return 0;
+    const suffix=name.match(/(\d+)$/);
+    return suffix?Number(suffix[1]):Number.MAX_SAFE_INTEGER;
+  }
+  function byBotNumber(a,b) {
+    return botNumber(a)-botNumber(b)||a.gamertag.localeCompare(b.gamertag);
+  }
+  function recommended(snapshot,exclude=null){
+    const preferred=snapshot.bots.find(b=>b.gamertag===snapshot.recommendedBot?.gamertag&&b.status==='available'&&b.gamertag!==exclude);
+    return preferred||snapshot.bots.filter(b=>b.status==='available'&&b.gamertag!==exclude).sort((a,b)=>{
+      const aKnown=a.friends!=null,bKnown=b.friends!=null;
+      if(aKnown!==bKnown)return aKnown?-1:1;
+      return (a.friends??0)-(b.friends??0)||byBotNumber(a,b);
+    })[0]||null;
+  }
+  function sortedBots(snapshot) {
+    const preferred=recommended(snapshot)?.gamertag;
+    const eligible=availableOnly?snapshot.bots.filter(b=>b.status==='available'):[...snapshot.bots];
+    return eligible.sort((a,b)=>{
+      if(sort==='available'||sort==='recommended'){
+        if(sort==='recommended') {
+          const ar=a.gamertag===preferred?0:1,br=b.gamertag===preferred?0:1;
+          if(ar!==br)return ar-br;
+        }
+        const av=a.status==='available'?0:1,bv=b.status==='available'?0:1;
+        if(av!==bv)return av-bv;
+      }
+      if(sort==='least-full'||sort==='most-full'){
+        const aKnown=a.friends!=null,bKnown=b.friends!=null;
+        if(aKnown!==bKnown)return aKnown?-1:1;
+        if(aKnown) {
+          const ar=a.friends/a.capacity,br=b.friends/b.capacity;
+          if(ar!==br)return sort==='least-full'?ar-br:br-ar;
+        }
+      }
+      if(sort==='most-recent'){
+        const at=Math.max(time(a.lastRelayAt)||0,time(a.lastSuccessfulTransferAt)||0);
+        const bt=Math.max(time(b.lastRelayAt)||0,time(b.lastSuccessfulTransferAt)||0);
+        if(at!==bt)return bt-at;
+      }
+      return byBotNumber(a,b);
+    });
+  }
+  function setIfChanged(node,value) {
+    const next=String(value);
+    if(node.textContent!==next)node.textContent=next;
   }
   function applyFleetStats() {
     if(!fleet)return;
-    for(const k of ['available','nearCapacity','full','offline','checking'])setAll(`[data-fleet-stat="${k}"]`,format(fleet.counts[k]));
+    for(const k of ['available','nearCapacity','full','offline','checking'])setAll('[data-fleet-stat="'+k+'"]',format(fleet.counts[k]));
     setAll('[data-bot-count]',format(fleet.counts.total));
-    // The fleet age label is refreshed by the one-second activity clock.
-    const el=$('fleetFreshness');if(el)el.textContent=fleetVerified?'Last updated '+new Date(fleet.generatedAt).toLocaleTimeString()+'.':'Connection delayed. Last verified '+verifiedTime('bots')+'. Check mcgateway.net/bots before adding a bot.';
+    const summary=$('fleetSummary');
+    if(summary)setIfChanged(summary,fleetVerified
+      ? format(fleet.counts.available)+' of '+format(fleet.counts.total)+' access bots currently available'
+      : 'Availability is not currently verified. Showing last known fleet information.');
+    const el=$('fleetFreshness');
+    if(el)setIfChanged(el,fleetVerified
+      ? 'Last updated '+new Date(fleet.generatedAt).toLocaleTimeString()+'.'
+      : 'Connection delayed. Last verified '+verifiedTime('bots')+'. Bot availability may have changed.');
   }
   function applyBotWidgets() {
     for(const widget of $$('[data-live-bot-widget]')) {
       const bot=fleet?.bots.find(b=>b.gamertag===chosen);
-      const safe=fleetVerified && bot?.status==='available';
-      const name=widget.querySelector('[data-bot-name]');if(name)name.textContent=bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…');
-      const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=!fleetVerified&&bot?'Last known bot details. Availability is not currently verified.':bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):chosen?'This bot is no longer listed. Choose another available account.':fleetVerified?'No available bot right now. Check the complete fleet.':'Waiting for verified bot availability.';
-      const badge=widget.querySelector('[data-bot-state]');if(badge){badge.textContent=bot?(fleetVerified?escapeStatus[bot.status].toUpperCase():'UNVERIFIED'):fleetVerified?(chosen?'UNAVAILABLE':'NO BOTS'):'CHECKING';badge.dataset.status=fleetVerified?(bot?.status||'offline'):'checking';}
-      const button=widget.querySelector('[data-bot-copy]');if(button){button.disabled=!safe;button.dataset.gamertag=safe?bot.gamertag:'';button.title=fleetVerified?'':'Bot availability is not currently verified';}
+      const safe=fleetVerified&&bot?.status==='available';
+      const name=widget.querySelector('[data-bot-name]');
+      if(name)setIfChanged(name,bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…'));
+      const heading=widget.querySelector('[data-bot-heading]');
+      if(heading)setIfChanged(heading,chosen&&chosen!==recommended(fleet||{bots:[]})?.gamertag?'Selected access bot':'Recommended gamertag');
+      const help=widget.querySelector('[data-bot-help]');
+      if(help)setIfChanged(help,!fleetVerified&&bot
+        ? 'Last known details. Availability cannot be confirmed right now.'
+        : bot?(safe
+          ? 'Available · '+(bot.friends==null?'Friend count not confirmed':format(bot.friends)+' / '+format(bot.capacity)+' friends')
+          : 'This bot is now '+escapeStatus[bot.status].toLowerCase()+'. Choose another available account.')
+        : chosen?'This bot is no longer listed. Choose another available account.'
+        : fleetVerified?'No available bot right now. Check the complete fleet.':'Waiting for verified bot availability.');
+      const badge=widget.querySelector('[data-bot-state]');
+      if(badge){
+        setIfChanged(badge,bot?(fleetVerified?escapeStatus[bot.status].toUpperCase():'UNVERIFIED'):fleetVerified?(chosen?'UNAVAILABLE':'NO BOTS'):'CHECKING');
+        badge.dataset.status=fleetVerified?(bot?.status||'offline'):'checking';
+      }
+      const button=widget.querySelector('[data-bot-copy]');
+      if(button) {
+        button.disabled=!safe;
+        button.dataset.gamertag=safe?bot.gamertag:'';
+        button.title=safe?'Copy '+bot.gamertag:'Bot availability is not currently verified';
+      }
     }
   }
-  function renderRoster() {
-    const roster=$('botRoster');if(!roster||!fleet)return;
-    const selected=fleet.bots.find(b=>b.gamertag===chosen);
-    const listed=[...fleet.bots].sort((a,b)=>{
-      if(sort==='recommended'){const ar=a.gamertag===chosen?-1:0,br=b.gamertag===chosen?-1:0;if(ar!==br)return ar-br;}
-      if(sort==='least-full'||sort==='most-full'){
-        const af=a.friends==null?Infinity:a.friends/a.capacity,bf=b.friends==null?Infinity:b.friends/b.capacity;
-        const dif=sort==='least-full'?af-bf:bf-af;if(dif)return dif;
-      }
-      if(sort==='most-recent'){
-        const at=Math.max(time(a.lastRelayAt)||0,time(a.lastSuccessfulTransferAt)||0),bt=Math.max(time(b.lastRelayAt)||0,time(b.lastSuccessfulTransferAt)||0);
-        if(at!==bt)return bt-at;
-      }
-      return sortByIndex(a)-sortByIndex(b)||a.gamertag.localeCompare(b.gamertag);
-    });
-    const fragment=document.createDocumentFragment();
-    for(const bot of listed){
-      const row=document.createElement('article');row.className='fleet-entry';row.dataset.status=fleetVerified?bot.status:'checking';
-      if(bot.gamertag===chosen)row.classList.add('is-selected');
-      const top=document.createElement('div');top.className='fleet-entry-top';
-      const heading=document.createElement('h3');heading.textContent=bot.gamertag;
-
-      const state=document.createElement('span');state.className='fleet-status';state.textContent=fleetVerified?escapeStatus[bot.status]:'Unverified';state.dataset.status=fleetVerified?bot.status:'checking';
-      top.append(heading,state);
-      const meta=document.createElement('p');meta.textContent=bot.friends==null?'Friend capacity not confirmed':`${format(bot.friends)} of ${format(bot.capacity)} friends`;
-      const activity=document.createElement('small');activity.textContent=Number.isFinite(time(bot.lastRelayAt))?'Last used '+relative(bot.lastRelayAt):Number.isFinite(time(bot.lastSuccessfulTransferAt))?'Last confirmed transfer '+relative(bot.lastSuccessfulTransferAt):'No recent transfer evidence';
-      const track=document.createElement('div');track.className='capacity-track';const fill=document.createElement('span');if(bot.friends!=null)fill.style.width=Math.min(100,bot.friends/bot.capacity*100)+'%';track.append(fill);
-      const action=document.createElement('button');action.className='outline-small';action.type='button';action.textContent=bot.gamertag===chosen?'Selected bot':'Select bot';action.disabled=!fleetVerified||bot.status!=='available';action.addEventListener('click',()=>{chosen=bot.gamertag;applyBotWidgets();renderRoster();toast(bot.gamertag+' selected. Copy the gamertag above.');});
-      row.append(top,meta,track,activity,action);fragment.append(row);
+  async function copyGamertag(gamertag,button,label) {
+    const current=fleetVerified&&fleet?.bots.find(b=>b.gamertag===gamertag&&b.status==='available');
+    if(!current){toast('Bot availability has changed. Refresh the fleet and try again.');return;}
+    const copied=await copyText(gamertag);
+    toast(copied?gamertag+' copied to clipboard.':'Copy failed. You can enter '+gamertag+' manually in Minecraft.');
+    if(copied&&label) {
+      const original=button.dataset.copyOriginal||label.textContent;
+      button.dataset.copyOriginal=original;
+      setIfChanged(label,'Copied!');
+      setTimeout(()=>{if(label.isConnected)setIfChanged(label,original);},1800);
     }
-    roster.replaceChildren(fragment);
+  }
+  function createRosterCard(bot) {
+    const row=document.createElement('article');row.className='fleet-entry';
+    row.dataset.gamertag=bot.gamertag;
+    const top=document.createElement('div');top.className='fleet-entry-top';
+    const heading=document.createElement('h3');heading.textContent=bot.gamertag;
+    const state=document.createElement('span');state.className='fleet-status';
+    top.append(heading,state);
+    const meta=document.createElement('p');
+    const track=document.createElement('div');track.className='capacity-track';
+    const fill=document.createElement('span');track.append(fill);
+    const activity=document.createElement('small');
+    const actions=document.createElement('div');actions.className='fleet-entry-actions';
+    const select=document.createElement('button');select.className='outline-small';
+    select.type='button';select.textContent='Select bot';
+    select.addEventListener('click',()=>{
+      if(!fleetVerified||!fleet?.bots.some(b=>b.gamertag===bot.gamertag&&b.status==='available')) {
+        toast('Bot availability is not currently verified.');return;
+      }
+      chosen=bot.gamertag;applyBotWidgets();renderRoster();
+      toast(bot.gamertag+' selected. Copy it here or at the top of the page.');
+    });
+    const copy=document.createElement('button');copy.className='outline-small roster-copy';
+    copy.type='button';copy.textContent='Copy gamertag';
+    copy.addEventListener('click',()=>copyGamertag(bot.gamertag,copy,copy));
+    actions.append(select,copy);row.append(top,meta,track,activity,actions);
+    return {row,state,meta,fill,activity,select,copy};
+  }
+  function updateRosterCard(card,bot) {
+    const isSelected=bot.gamertag===chosen;
+    const safe=fleetVerified&&bot.status==='available';
+    card.row.classList.toggle('is-selected',isSelected);
+    card.row.dataset.status=fleetVerified?bot.status:'checking';
+    card.state.dataset.status=fleetVerified?bot.status:'checking';
+    setIfChanged(card.state,fleetVerified?escapeStatus[bot.status]:'Unverified');
+    setIfChanged(card.meta,bot.friends==null?'Friend capacity not confirmed':format(bot.friends)+' of '+format(bot.capacity)+' friends');
+    card.fill.style.width=bot.friends==null?'0%':Math.min(100,bot.friends/bot.capacity*100)+'%';
+    setIfChanged(card.activity,Number.isFinite(time(bot.lastRelayAt))
+      ? 'Last used '+relative(bot.lastRelayAt)
+      : Number.isFinite(time(bot.lastSuccessfulTransferAt))
+        ? 'Last confirmed transfer '+relative(bot.lastSuccessfulTransferAt)
+        : 'No recent transfer evidence');
+    card.select.disabled=!safe;
+    setIfChanged(card.select,isSelected?'Selected bot':'Select bot');
+    card.copy.disabled=!safe;
+    card.copy.title=safe?'Copy '+bot.gamertag:'Availability is not currently verified';
+    if(!safe&&card.copy.textContent==='Copied!')setIfChanged(card.copy,'Copy gamertag');
+  }
+  function renderRoster() {
+    const roster=$('botRoster');
+    if(!roster||!fleet)return;
+    const known=new Set(fleet.bots.map(b=>b.gamertag));
+    for(const [name,card] of rosterCards) {
+      if(!known.has(name)){card.row.remove();rosterCards.delete(name);}
+    }
+    for(const bot of fleet.bots) {
+      let card=rosterCards.get(bot.gamertag);
+      if(!card){card=createRosterCard(bot);rosterCards.set(bot.gamertag,card);}
+      updateRosterCard(card,bot);
+    }
+    const ordered=sortedBots(fleet).map(b=>rosterCards.get(b.gamertag).row);
+    const current=[...roster.children];
+    if(current.length!==ordered.length||current.some((el,i)=>el!==ordered[i])) {
+      const focused=document.activeElement;
+      const restore=focused&&roster.contains(focused)?focused:null;
+      roster.replaceChildren(...ordered);
+      if(restore&&restore.isConnected&&document.activeElement!==restore)restore.focus({preventScroll:true});
+    }
+    const empty=$('fleetEmpty');
+    if(empty) {
+      empty.hidden=ordered.length!==0;
+      if(!empty.hidden)setIfChanged(empty,availableOnly
+        ? fleetVerified?'No bots are marked Available right now.':'Cannot confirm available bots right now.'
+        : 'No access bots are currently listed.');
+    }
   }
   function renderFleet(data) {
     fleetVerified=isLive('bots');
     fleet=validateFleet(data,!fleetVerified);
     fleetGeneratedAt=time(data.generatedAt);
-    // Select only from verified live data and retain this choice until a user changes it.
     if(chosen===null&&fleetVerified)chosen=recommended(fleet)?.gamertag||null;
     applyFleetStats();applyBotWidgets();renderRoster();updateActivityClocks();
   }
@@ -325,25 +449,28 @@
         setAll('[data-fleet-stat]','Unavailable');
         setAll('[data-fleet-updated]','Waiting for bot availability.');
         const note=$('fleetFreshness');if(note)note.textContent='Could not connect. Retrying automatically.';
-        if(hasRoster)$('botRoster').innerHTML='<div class="loading-panel">Waiting for the live bot roster. No example availability is being shown.</div>';
+        const summary=$('fleetSummary');if(summary)summary.textContent='Live fleet data is unavailable right now.';
+        if(hasRoster)$('botRoster').innerHTML='<div class="loading-panel">Waiting for the live bot roster. Retrying automatically.</div>';
       }
     }finally{fleetBusy=false;}
   }
   $$('[data-bot-copy]').forEach(button=>button.addEventListener('click',async()=>{
-    const gamertag=button.dataset.gamertag;if(!gamertag||button.disabled)return;
-    const ok=await copyText(gamertag);toast(ok?gamertag+' copied to clipboard.':`Gamertag: ${gamertag}. You can enter it manually in Minecraft.`);
-    const label=button.querySelector('[data-copy-label]');
-    if(label&&ok){label.textContent='Copied!';setTimeout(()=>{label.textContent='Copy';},1800);}
+    const name=button.dataset.gamertag;
+    if(!name||button.disabled)return;
+    await copyGamertag(name,button,button.querySelector('[data-copy-label]'));
   }));
   $('botSort')?.addEventListener('change',e=>{sort=e.target.value;renderRoster();});
+  $('availableOnly')?.addEventListener('change',e=>{availableOnly=e.target.checked;renderRoster();});
   $('refreshFleet')?.addEventListener('click',()=>{toast('Checking bot availability…');updateFleet();});
   $('refreshBotChoice')?.addEventListener('click',()=>{
-    if(!fleet || !fleetVerified){updateFleet();toast('Waiting to verify bot availability…');return;}
-    const next=recommended(fleet,chosen);if(next)chosen=next.gamertag;
-    applyBotWidgets();renderRoster();toast(next?'Recommendation changed to '+next.gamertag+'.':'No alternative available bot right now.');
+    if(!fleet||!fleetVerified){updateFleet();toast('Waiting to verify bot availability…');return;}
+    const next=recommended(fleet,chosen);
+    if(next)chosen=next.gamertag;
+    applyBotWidgets();renderRoster();
+    toast(next?'Recommendation changed to '+next.gamertag+'.':'No alternative available bot right now.');
   });
 
-  const recentExists=$$('[data-recent]').length>0;
+    const recentExists=$$('[data-recent]').length>0;
   function renderRecent(raw) {
     const data=validateRecent(raw);
     ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
