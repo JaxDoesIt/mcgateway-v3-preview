@@ -234,7 +234,7 @@
     if(!statisticsPage||summaryIsCurrent())return;
     const players=document.querySelector('[data-live="hubPlayers"]');
     if(players&&players.textContent!=='Unverified')setAll('[data-live="hubPlayers"]','Unverified');
-    $('[data-gateway-status]').forEach(el=>{
+    document.querySelectorAll('[data-gateway-status]').forEach(el=>{
       if(el.textContent!=='Status unverified')el.textContent='Status unverified';
       el.dataset.status='checking';
     });
@@ -562,8 +562,8 @@
     try{renderRecent(await fetchJSON('statistics'));}
     catch(error){
       // Never replace a previously verified statistic with a fabricated or blank number.
-      $('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
-      $('[data-recent-average]').forEach(el=>{if(el.textContent.includes('Checking'))el.textContent='Daily average unavailable';});
+      document.querySelectorAll('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
+      document.querySelectorAll('[data-recent-average]').forEach(el=>{if(el.textContent.includes('Checking'))el.textContent='Daily average unavailable';});
       setAll('#recentFreshness','Could not connect to recent activity. Retrying automatically.');
     }finally{recentBusy=false;}
   }
