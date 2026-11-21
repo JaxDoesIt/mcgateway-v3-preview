@@ -386,3 +386,25 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 .digit-track > span { display: block; height: 1em; line-height: 1em; }
 .rolling-digit.blur-spin { animation: digitBlur 2200ms cubic-bezier(.42,0,.58,1) both; }
 @keyframes digitBlur { 0%,100% { filter: blur(0); opacity: 1; } 18% { filter: blur(.45px); opacity: .96; } 52% { filter: blur(1.25px); opacity: .84; } 82% { filter: blur(.4px); opacity: .96; } }
+
+/* Homepage launch polish: meaningful action labels and real source activity ages. */
+.bot-copy{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;min-width:75px;padding:0 10px;font-size:11px;font-weight:800;white-space:nowrap}
+.bot-copy [data-copy-label]{display:inline-block}
+.ledger-transfer{padding-top:9px;border-top:1px solid #bca77d3b;min-width:0}
+.ledger-transfer-value{display:block;margin-top:7px;color:#90e7de;font-size:19px;line-height:1.2;letter-spacing:-.025em;font-weight:780;font-variant-numeric:tabular-nums}
+.ledger-disclaimer,.ledger-description{font-size:12px}
+.bot-identity small{font-size:11px}
+@media(max-width:1060px){.ledger-transfer{border-top:0;border-left:1px solid #bca77d4e;padding:0 0 0 25px}}
+@media(max-width:520px){
+ .brand-type small{font-size:8.5px;letter-spacing:.06em}
+ .bot-copy{width:auto;min-width:61px;height:35px;padding:0 7px;gap:4px;font-size:10px}
+ .bot-copy .icon{width:14px;height:14px}
+ .bot-identity small{font-size:10px}
+ .ledger-label{font-size:10px}
+ .step-number{font-size:10px}
+ .ledger-secondary{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+ .ledger-fleet{border:0;border-right:1px solid #bca77d4e;padding-right:12px}
+ .ledger-transfer{grid-column:1/-1;border-left:0;border-top:1px solid #bca77d4e;padding:10px 0 0}
+ .ledger-transfer-value{font-size:20px}
+}
+@media(max-width:370px){.bot-preview-badge{display:none}}

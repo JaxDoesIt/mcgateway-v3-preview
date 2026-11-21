@@ -84,6 +84,39 @@
     if(seconds<86400) return `${Math.floor(seconds/3600)}h ago`;
     return `${Math.floor(seconds/86400)}d ago`;
   }
+  // Human-readable clocks tick independently of live API polling.
+  let summaryGeneratedAt=NaN, lastTransferAt=NaN, fleetGeneratedAt=NaN;
+  function elapsedDescription(at) {
+    if(!Number.isFinite(at))return 'Unavailable';
+    const seconds=Math.max(0,Math.floor((Date.now()-at)/1000));
+    if(seconds<1)return 'just now';
+    if(seconds<60)return seconds+' '+(seconds===1?'second':'seconds')+' ago';
+    const minutes=Math.floor(seconds/60);
+    if(minutes<60)return minutes+' '+(minutes===1?'minute':'minutes')+' ago';
+    const hours=Math.floor(minutes/60);
+    if(hours<24)return hours+' '+(hours===1?'hour':'hours')+' ago';
+    const days=Math.floor(hours/24);
+    return days+' '+(days===1?'day':'days')+' ago';
+  }
+  function updateActivityClocks() {
+    if($('[data-live="lastTransfer"]').length)
+      setAll('[data-live="lastTransfer"]',elapsedDescription(lastTransferAt));
+    if(Number.isFinite(summaryGeneratedAt)) {
+      const age=Date.now()-summaryGeneratedAt, fresh=age>=-60000&&age<=180000;
+      setAll('#summaryFreshness',isLive('summary')&&fresh
+        ? 'Live feed · checked '+elapsedDescription(summaryGeneratedAt)+'.'
+        : 'Live feed delayed · last verified '+elapsedDescription(summaryGeneratedAt)+'.');
+      if(!fresh)$('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
+    }
+    if(fleet&&Number.isFinite(fleetGeneratedAt)) {
+      const age=Date.now()-fleetGeneratedAt, fresh=age>=-60000&&age<=180000;
+      if(fleetVerified&&!fresh){fleetVerified=false;applyBotWidgets();renderRoster();}
+      setAll('[data-fleet-updated]',fleetVerified&&fresh
+        ? 'Fleet checked '+elapsedDescription(fleetGeneratedAt)+'.'
+        : 'Fleet availability unverified · last checked '+elapsedDescription(fleetGeneratedAt)+'.');
+    }
+  }
+
   async function fetchJSON(kind) {
     // Share any in-flight request to prevent overlapping responses racing each other.
     if(pendingRequests.has(kind))return pendingRequests.get(kind);
@@ -166,16 +199,14 @@
     const data=validateSummary(raw);
     for(const k of ['transfers','uniquePlayers','trackedServers'])setAll(`[data-stat="${k}"]`,format(data.totals[k]));
     setAll('[data-live="hubPlayers"]',format(data.live.playersInHub));
-    setAll('[data-live="lastTransfer"]',Number.isFinite(time(data.live.lastTransferAt))?relative(data.live.lastTransferAt):'Not available');
+    summaryGeneratedAt=time(data.generatedAt);
+    lastTransferAt=time(data.live.lastTransferAt);
     const state=typeof data.status.state==='string'?data.status.state:'checking';
     const labels={online:'Online',delayed:'Delayed',lost_signal:'Signal unavailable',offline:'Offline',checking:'Checking'};
     const age=Date.now()-time(data.generatedAt),fresh=age>=-60000&&age<=180000;
     const verified=isLive('summary')&&fresh;
     $$('[data-gateway-status]').forEach(el=>{el.textContent=verified?(labels[state]||'Checking'):'Status unverified';el.dataset.status=verified?state:'checking';});
-    setAll('#summaryFreshness',!isLive('summary')
-      ? 'Connection delayed. Last verified '+verifiedTime('summary')+'.'
-      : fresh?'Updated '+relative(data.generatedAt)+'.'
-      :'Last updated '+new Date(data.generatedAt).toLocaleString()+'. Current status could not be confirmed.');
+    updateActivityClocks();
   }
   let summaryBusy=false;
   async function updateSummary(){
@@ -183,6 +214,8 @@
     summaryBusy=true;
     try{renderSummary(await fetchJSON('summary'));}
     catch(error){
+      summaryGeneratedAt=NaN;lastTransferAt=NaN;
+      setAll('[data-live="lastTransfer"]','Unavailable');
       setAll('#summaryFreshness','Could not connect to live statistics. Retrying automatically.');
       $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unavailable';el.dataset.status='checking';});
       $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
@@ -202,15 +235,15 @@
     if(!fleet)return;
     for(const k of ['available','nearCapacity','full','offline','checking'])setAll(`[data-fleet-stat="${k}"]`,format(fleet.counts[k]));
     setAll('[data-bot-count]',format(fleet.counts.total));
-    setAll('[data-fleet-updated]',fleetVerified?'Fleet checked '+relative(fleet.generatedAt)+'.':'Last known bot list. Availability unverified.');
+    // The fleet age label is refreshed by the one-second activity clock.
     const el=$('fleetFreshness');if(el)el.textContent=fleetVerified?'Last updated '+new Date(fleet.generatedAt).toLocaleTimeString()+'.':'Connection delayed. Last verified '+verifiedTime('bots')+'. Check mcgateway.net/bots before adding a bot.';
   }
   function applyBotWidgets() {
     for(const widget of $$('[data-live-bot-widget]')) {
       const bot=fleet?.bots.find(b=>b.gamertag===chosen);
       const safe=fleetVerified && bot?.status==='available';
-      const name=widget.querySelector('[data-bot-name]');if(name)name.textContent=bot?bot.gamertag:fleet?'No available bot':'Checking availability…';
-      const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=!fleetVerified && bot?'Last known bot details. Availability is not currently verified.':bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):fleet?'Visit the fleet below to check accounts.':'Checking bot availability…';
+      const name=widget.querySelector('[data-bot-name]');if(name)name.textContent=bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…');
+      const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=!fleetVerified&&bot?'Last known bot details. Availability is not currently verified.':bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):chosen?'This bot is no longer listed. Choose another available account.':fleetVerified?'No available bot right now. Check the complete fleet.':'Waiting for verified bot availability.';
       const badge=widget.querySelector('[data-bot-state]');if(badge){badge.textContent=bot?(fleetVerified?escapeStatus[bot.status].toUpperCase():'UNVERIFIED'):'CHECKING';badge.dataset.status=fleetVerified?(bot?.status||'checking'):'checking';}
       const button=widget.querySelector('[data-bot-copy]');if(button){button.disabled=!safe;button.dataset.gamertag=safe?bot.gamertag:'';button.title=fleetVerified?'':'Bot availability is not currently verified';}
     }
@@ -250,9 +283,10 @@
   function renderFleet(data) {
     fleetVerified=isLive('bots');
     fleet=validateFleet(data,!fleetVerified);
-    if(chosen===null || !fleet.bots.some(b=>b.gamertag===chosen&&b.status==='available'))
-      chosen=recommended(fleet)?.gamertag||null;
-    applyFleetStats();applyBotWidgets();renderRoster();
+    fleetGeneratedAt=time(data.generatedAt);
+    // Select only from verified live data and retain this choice until a user changes it.
+    if(chosen===null&&fleetVerified)chosen=recommended(fleet)?.gamertag||null;
+    applyFleetStats();applyBotWidgets();renderRoster();updateActivityClocks();
   }
   async function updateFleet() {
     if((!hasBotWidgets&&!hasRoster)||fleetBusy)return;
@@ -260,8 +294,9 @@
     try{renderFleet(await fetchJSON('bots'));}
     catch(error){
       fleetVerified=false;
-      if(fleet){applyFleetStats();applyBotWidgets();renderRoster();}
+      if(fleet){applyFleetStats();applyBotWidgets();renderRoster();updateActivityClocks();}
       else {
+        fleetGeneratedAt=NaN;
         $$('[data-bot-name]').forEach(el=>el.textContent='Availability unavailable');
         $$('[data-bot-help]').forEach(el=>el.textContent='Cannot verify bot availability. Please try again shortly.');
         $$('[data-bot-copy]').forEach(el=>{el.disabled=true;el.dataset.gamertag='';});
@@ -275,6 +310,8 @@
   $$('[data-bot-copy]').forEach(button=>button.addEventListener('click',async()=>{
     const gamertag=button.dataset.gamertag;if(!gamertag||button.disabled)return;
     const ok=await copyText(gamertag);toast(ok?gamertag+' copied to clipboard.':`Gamertag: ${gamertag}. You can enter it manually in Minecraft.`);
+    const label=button.querySelector('[data-copy-label]');
+    if(label&&ok){label.textContent='Copied!';setTimeout(()=>{label.textContent='Copy';},1800);}
   }));
   $('botSort')?.addEventListener('change',e=>{sort=e.target.value;renderRoster();});
   $('refreshFleet')?.addEventListener('click',()=>{toast('Checking bot availability…');updateFleet();});
@@ -316,6 +353,7 @@
   hydrateVerifiedData();
   refresh();
   // Keep request cadence modest; don't continue polling hidden tabs.
+  setInterval(updateActivityClocks,1000);
   setInterval(()=>{if(!document.hidden)updateSummary();},10000);
   setInterval(()=>{if(!document.hidden)updateFleet();},12000);
   setInterval(()=>{if(!document.hidden)updateRecent();},30000);
