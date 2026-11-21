@@ -364,7 +364,7 @@
   function refreshFleetActivity() {
     if(!fleet)return;
     const selected=fleet.bots.find(bot=>bot.gamertag===chosen);
-    for(const node of $('[data-bot-last-used]'))setIfChanged(node,botActivityText(selected));
+    for(const node of document.querySelectorAll('[data-bot-last-used]'))setIfChanged(node,botActivityText(selected));
     for(const bot of fleet.bots){
       const card=rosterCards.get(bot.gamertag);
       if(card)setIfChanged(card.activity,botActivityText(bot));
