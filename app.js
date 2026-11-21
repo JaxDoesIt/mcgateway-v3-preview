@@ -10,7 +10,44 @@
   // GitHub Pages serves static files only. Read public data directly when allowed by CORS.
   // Other hosts preserve the Cloudflare Worker proxy fallback behavior.
   const isStaticPreview = location.protocol === 'file:' || location.hostname.endsWith('.github.io');
-  const previewDemo = isStaticPreview ? window.MCGatewayPreviewDemo : null;
+  // The design preview must never silently substitute invented statistics or bot statuses.
+  const CACHE_KEY = 'mcgateway-v3-verified-v2:';
+  const MAX_CACHE_AGE = {summary: 12*60*60*1000, bots: 30*60*1000, statistics: 12*60*60*1000};
+  const resources = {
+    summary: {live:false,verifiedAt:null},
+    bots: {live:false,verifiedAt:null},
+    statistics: {live:false,verifiedAt:null}
+  };
+  const lastGood = new Map();
+  const pendingRequests = new Map();
+  const isLive = kind => resources[kind]?.live===true;
+  const verifiedTime = kind => resources[kind]?.verifiedAt ? new Date(resources[kind].verifiedAt).toLocaleTimeString() : 'unknown';
+  function validator(kind, data, cached=false) {
+    if(kind==='summary')return validateSummary(data);
+    if(kind==='bots')return validateFleet(data,cached);
+    return validateRecent(data);
+  }
+  function lastVerified(kind) {
+    const inMemory=lastGood.get(kind);
+    if(inMemory && Date.now()-inMemory.savedAt <= MAX_CACHE_AGE[kind])return inMemory;
+    try {
+      const entry=JSON.parse(localStorage.getItem(CACHE_KEY+kind)||'null');
+      if(!entry || !Number.isFinite(entry.savedAt) || entry.savedAt>Date.now()+60000 ||
+         Date.now()-entry.savedAt>MAX_CACHE_AGE[kind])return null;
+      validator(kind,entry.data,true);
+      lastGood.set(kind,entry);
+      return entry;
+    }catch{return null;}
+  }
+  function rememberVerified(kind,data) {
+    const entry={data,savedAt:Date.now()};
+    lastGood.set(kind,entry);
+    try{localStorage.setItem(CACHE_KEY+kind,JSON.stringify(entry));}catch{}
+    resources[kind]={live:true,verifiedAt:entry.savedAt};
+  }
+  function markCached(kind,entry) {
+    resources[kind]={live:false,verifiedAt:entry?.savedAt??null};
+  }
   const ENDPOINTS = {
     summary: isStaticPreview ? ['https://mcgateway.net/api/summary'] : ['/api/summary','https://api.mcgateway.net/v1/public/summary'],
     bots: isStaticPreview ? ['https://mcgateway.net/api/bots'] : ['/api/bots','https://api.mcgateway.net/v1/public/bots'],
@@ -45,24 +82,37 @@
     return `${Math.floor(seconds/86400)}d ago`;
   }
   async function fetchJSON(kind) {
-    if(previewDemo?.forceDemo){previewDemo.setSource(kind,true);return previewDemo.sample(kind);}
-    let lastError;
-    for(const url of ENDPOINTS[kind]) {
-      const controller = new AbortController();
-      const stop = setTimeout(()=>controller.abort(),4200);
-      try {
-        const response=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
-        if(!response.ok)throw new Error('HTTP '+response.status);
-        const data=await response.json();
-        if(previewDemo){
-          ({summary:validateSummary,bots:validateFleet,statistics:validateRecent})[kind](data);
-          previewDemo.setSource(kind,false);
+    // Share any in-flight request to prevent overlapping responses racing each other.
+    if(pendingRequests.has(kind))return pendingRequests.get(kind);
+    const job=(async()=>{
+      let lastError;
+      // GitHub Pages uses the single public production proxy, with one retry for
+      // transient failures. No mock records are ever returned here.
+      const urls=ENDPOINTS[kind];
+      for(let attempt=0;attempt<(isStaticPreview?2:1);attempt++){
+        for(const url of urls){
+          const controller=new AbortController();
+          const stop=setTimeout(()=>controller.abort(),8000);
+          try{
+            const response=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            const data=validator(kind,await response.json());
+            rememberVerified(kind,data);
+            return data;
+          }catch(error){lastError=error;}
+          finally{clearTimeout(stop);}
         }
-        return data;
-      } catch(e){lastError=e;}finally{clearTimeout(stop);}
-    }
-    if(previewDemo){previewDemo.setSource(kind,true);return previewDemo.sample(kind);}
-    throw lastError || new Error('Unable to reach the public service');
+      }
+      const saved=lastVerified(kind);
+      if(saved){
+        markCached(kind,saved);
+        return saved.data;
+      }
+      markCached(kind,null);
+      throw lastError||new Error('Live data temporarily unavailable');
+    })();
+    pendingRequests.set(kind,job);
+    try{return await job;}finally{if(pendingRequests.get(kind)===job)pendingRequests.delete(kind);}
   }
   function validateSummary(data) {
     if(!data || !data.totals || !data.live || !data.status || !Number.isFinite(time(data.generatedAt)))throw new Error('Missing public summary');
@@ -70,7 +120,7 @@
     if(!numeric(data.live.playersInHub))throw new Error('Invalid Hub count');
     return data;
   }
-  function validateFleet(data) {
+  function validateFleet(data, allowExpired=false) {
     if(!data || !Array.isArray(data.bots) || !data.counts || !Number.isFinite(time(data.generatedAt)))throw new Error('Missing fleet data');
     const counts={total:data.bots.length,available:0,nearCapacity:0,full:0,offline:0,checking:0};
     const seen=new Set();
@@ -81,7 +131,7 @@
     for(const k in counts)if(!numeric(data.counts[k])||data.counts[k]!==counts[k])throw new Error('Incorrect fleet counts');
     // A cached fleet is not evidence that a bot is safe to add now.
     const age=Date.now()-time(data.generatedAt);
-    if(age > 180000 || age < -60000)throw new Error('Fleet response out of date');
+    if(!allowExpired && (age > 180000 || age < -60000))throw new Error('Fleet response out of date');
     return data;
   }
   function validateRecent(data) {
