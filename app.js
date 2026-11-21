@@ -244,7 +244,7 @@
       const safe=fleetVerified && bot?.status==='available';
       const name=widget.querySelector('[data-bot-name]');if(name)name.textContent=bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…');
       const help=widget.querySelector('[data-bot-help]');if(help)help.textContent=!fleetVerified&&bot?'Last known bot details. Availability is not currently verified.':bot?(safe?'Available · '+(bot.friends==null?'Capacity count not confirmed':`${format(bot.friends)} / ${format(bot.capacity)} friends`):`This bot is now ${escapeStatus[bot.status].toLowerCase()}. Choose another available account.`):chosen?'This bot is no longer listed. Choose another available account.':fleetVerified?'No available bot right now. Check the complete fleet.':'Waiting for verified bot availability.';
-      const badge=widget.querySelector('[data-bot-state]');if(badge){badge.textContent=bot?(fleetVerified?escapeStatus[bot.status].toUpperCase():'UNVERIFIED'):'CHECKING';badge.dataset.status=fleetVerified?(bot?.status||'checking'):'checking';}
+      const badge=widget.querySelector('[data-bot-state]');if(badge){badge.textContent=bot?(fleetVerified?escapeStatus[bot.status].toUpperCase():'UNVERIFIED'):fleetVerified?(chosen?'UNAVAILABLE':'NO BOTS'):'CHECKING';badge.dataset.status=fleetVerified?(bot?.status||'offline'):'checking';}
       const button=widget.querySelector('[data-bot-copy]');if(button){button.disabled=!safe;button.dataset.gamertag=safe?bot.gamertag:'';button.title=fleetVerified?'':'Bot availability is not currently verified';}
     }
   }

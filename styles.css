@@ -408,3 +408,22 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
  .ledger-transfer-value{font-size:20px}
 }
 @media(max-width:370px){.bot-preview-badge{display:none}}
+
+
+/* Homepage-only finishing touches. Shared interior page typography is unchanged. */
+.home-page .brand-type small{font-size:10px;letter-spacing:.1em}
+.home-page .eyebrow,.home-page .ledger-eyebrow{font-size:11px;letter-spacing:.1em}
+.home-page .step-number{font-size:11px;letter-spacing:.08em}
+.home-page .step p,.home-page .console small,.home-page .bot-identity small,
+.home-page .bot-footnote,.home-page .ledger-label,.home-page .ledger-description,
+.home-page .ledger-disclaimer,.home-page .ledger-unverified,
+.home-page .ledger-fleet-value span{font-size:12px}
+.home-page .bot-preview-badge{font-size:10px;letter-spacing:.03em}
+.home-page .ledger-mark small{font-size:9px}
+@media(max-width:520px){
+ .home-page .brand-type small{font-size:9px;letter-spacing:.04em}
+ .home-page .step p,.home-page .step-number,.home-page .ledger-label{font-size:11px}
+ .home-page .ledger-mark small{font-size:8px}
+ .home-page .bot-identity small{font-size:10px}
+ .home-page .bot-preview-badge{font-size:9px}
+}
