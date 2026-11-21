@@ -99,14 +99,14 @@
     return days+' '+(days===1?'day':'days')+' ago';
   }
   function updateActivityClocks() {
-    if($('[data-live="lastTransfer"]').length)
+    if(document.querySelector('[data-live="lastTransfer"]'))
       setAll('[data-live="lastTransfer"]',elapsedDescription(lastTransferAt));
     if(Number.isFinite(summaryGeneratedAt)) {
       const age=Date.now()-summaryGeneratedAt, fresh=age>=-60000&&age<=180000;
       setAll('#summaryFreshness',isLive('summary')&&fresh
         ? 'Live feed · checked '+elapsedDescription(summaryGeneratedAt)+'.'
         : 'Live feed delayed · last verified '+elapsedDescription(summaryGeneratedAt)+'.');
-      if(!fresh)$('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
+      if(!fresh)document.querySelectorAll('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
     }
     if(fleet&&Number.isFinite(fleetGeneratedAt)) {
       const age=Date.now()-fleetGeneratedAt, fresh=age>=-60000&&age<=180000;
@@ -344,9 +344,14 @@
       const saved=lastVerified(kind);
       if(!saved)continue;
       markCached(kind,saved);
-      if(kind==='summary' && hasSummary)renderSummary(saved.data);
-      if(kind==='bots' && (hasBotWidgets||hasRoster))renderFleet(saved.data);
-      if(kind==='statistics' && recentExists)renderRecent(saved.data);
+      try {
+        if(kind==='summary' && hasSummary)renderSummary(saved.data);
+        if(kind==='bots' && (hasBotWidgets||hasRoster))renderFleet(saved.data);
+        if(kind==='statistics' && recentExists)renderRecent(saved.data);
+      } catch(error) {
+        // A bad cached snapshot must never stop independent live API requests.
+        console.warn('Could not restore cached '+kind+' data; fetching live instead.', error);
+      }
     }
   }
   function refresh(){updateSummary();updateFleet();updateRecent();}
