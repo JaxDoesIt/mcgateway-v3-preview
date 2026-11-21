@@ -670,3 +670,29 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
   overflow:hidden;
   contain:paint;
 }
+
+
+/* Statistics: keep Last Recorded Transfer at the same visual weight as adjacent live values. */
+.statistics-page .status-detail-grid .statistics-transfer-age{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.statistics-page .status-detail-grid .statistics-transfer-number{
+  font-family:inherit;
+  font-size:inherit;
+  font-weight:inherit;
+  line-height:inherit;
+  letter-spacing:inherit;
+  font-variant-numeric:lining-nums tabular-nums;
+  color:inherit;
+}
+.statistics-page .status-detail-grid .statistics-transfer-unit{
+  font-family:var(--sans);
+  font-size:12px;
+  font-weight:600;
+  line-height:1.4;
+  letter-spacing:0;
+  color:#b1cfca;
+}
