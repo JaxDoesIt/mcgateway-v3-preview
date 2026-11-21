@@ -225,7 +225,7 @@
 
   // Live summary: lifetime totals, Hub population, service condition.
   const statisticsPage=Boolean(document.body?.classList.contains('statistics-page'));
-  const hasSummary=$('[data-stat], [data-live], [data-gateway-status]').length>0;
+  const hasSummary=document.querySelectorAll('[data-stat], [data-live], [data-gateway-status]').length>0;
   function summaryIsCurrent() {
     const age=Date.now()-summaryGeneratedAt;
     return isLive('summary')&&Number.isFinite(age)&&age>=-60000&&age<=180000;
@@ -270,7 +270,7 @@
   // Read-only current bot fleet with session-locked recommendation.
   const hasBotWidgets=$$('[data-live-bot-widget]').length>0;
   const hasRoster=Boolean($('botRoster'));
-  const hasFleetCount=$('[data-bot-count]').length>0;
+  const hasFleetCount=document.querySelectorAll('[data-bot-count]').length>0;
   let fleet=null, chosen=null, sort=$('botSort')?.value||'order', availableOnly=false, fleetVerified=false, fleetBusy=false, recommendationInitialized=false, manuallySelected=false, pinnedRecommendation=null;
   const rosterCards=new Map();
   function botNumber(bot) {
