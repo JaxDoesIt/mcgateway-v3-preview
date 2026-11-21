@@ -136,6 +136,7 @@
       setAll('[data-fleet-updated]',fleetVerified&&fresh
         ? 'Fleet checked '+elapsedDescription(fleetGeneratedAt)+'.'
         : 'Fleet availability unverified · last checked '+elapsedDescription(fleetGeneratedAt)+'.');
+      refreshFleetActivity();
     }
   }
 
@@ -247,7 +248,7 @@
   // Read-only current bot fleet with session-locked recommendation.
   const hasBotWidgets=$$('[data-live-bot-widget]').length>0;
   const hasRoster=Boolean($('botRoster'));
-  let fleet=null, chosen=null, sort=$('botSort')?.value||'order', availableOnly=false, fleetVerified=false, fleetBusy=false;
+  let fleet=null, chosen=null, sort=$('botSort')?.value||'order', availableOnly=false, fleetVerified=false, fleetBusy=false, recommendationInitialized=false, manuallySelected=false, pinnedRecommendation=null;
   const rosterCards=new Map();
   function botNumber(bot) {
     const name=bot.gamertag.trim();
@@ -267,7 +268,7 @@
     })[0]||null;
   }
   function sortedBots(snapshot) {
-    const preferred=recommended(snapshot)?.gamertag;
+    const preferred=pinnedRecommendation;
     const eligible=availableOnly?snapshot.bots.filter(b=>b.status==='available'):[...snapshot.bots];
     return eligible.sort((a,b)=>{
       if(sort==='available'||sort==='recommended'){
@@ -318,7 +319,7 @@
       const name=widget.querySelector('[data-bot-name]');
       if(name)setIfChanged(name,bot?bot.gamertag:chosen||(fleetVerified?'No available bot':'Checking availability…'));
       const heading=widget.querySelector('[data-bot-heading]');
-      if(heading)setIfChanged(heading,chosen&&chosen!==recommended(fleet||{bots:[]})?.gamertag?'Selected access bot':'Recommended gamertag');
+      if(heading)setIfChanged(heading,manuallySelected?'Your bot':'Recommended gamertag');
       const help=widget.querySelector('[data-bot-help]');
       if(help)setIfChanged(help,!fleetVerified&&bot
         ? 'Last known details. Availability cannot be confirmed right now.'
@@ -352,6 +353,23 @@
       setTimeout(()=>{if(label.isConnected)setIfChanged(label,original);},1800);
     }
   }
+  function botActivityText(bot) {
+    if(!bot)return 'Recent activity unavailable';
+    const lastRelay=time(bot.lastRelayAt);
+    if(Number.isFinite(lastRelay))return 'Last used '+elapsedDescription(lastRelay);
+    const lastTransfer=time(bot.lastSuccessfulTransferAt);
+    if(Number.isFinite(lastTransfer))return 'Last transfer '+elapsedDescription(lastTransfer);
+    return 'No recent activity reported';
+  }
+  function refreshFleetActivity() {
+    if(!fleet)return;
+    const selected=fleet.bots.find(bot=>bot.gamertag===chosen);
+    for(const node of $('[data-bot-last-used]'))setIfChanged(node,botActivityText(selected));
+    for(const bot of fleet.bots){
+      const card=rosterCards.get(bot.gamertag);
+      if(card)setIfChanged(card.activity,botActivityText(bot));
+    }
+  }
   function createRosterCard(bot) {
     const row=document.createElement('article');row.className='fleet-entry';
     row.dataset.gamertag=bot.gamertag;
@@ -370,7 +388,7 @@
       if(!fleetVerified||!fleet?.bots.some(b=>b.gamertag===bot.gamertag&&b.status==='available')) {
         toast('Bot availability is not currently verified.');return;
       }
-      chosen=bot.gamertag;applyBotWidgets();renderRoster();
+      chosen=bot.gamertag;manuallySelected=true;applyBotWidgets();renderRoster();
       toast(bot.gamertag+' selected. Copy it here or at the top of the page.');
     });
     const copy=document.createElement('button');copy.className='outline-small roster-copy';
@@ -388,11 +406,7 @@
     setIfChanged(card.state,fleetVerified?escapeStatus[bot.status]:'Unverified');
     setIfChanged(card.meta,bot.friends==null?'Friend capacity not confirmed':format(bot.friends)+' of '+format(bot.capacity)+' friends');
     card.fill.style.width=bot.friends==null?'0%':Math.min(100,bot.friends/bot.capacity*100)+'%';
-    setIfChanged(card.activity,Number.isFinite(time(bot.lastRelayAt))
-      ? 'Last used '+relative(bot.lastRelayAt)
-      : Number.isFinite(time(bot.lastSuccessfulTransferAt))
-        ? 'Last confirmed transfer '+relative(bot.lastSuccessfulTransferAt)
-        : 'No recent transfer evidence');
+    setIfChanged(card.activity,botActivityText(bot));
     card.select.disabled=!safe;
     setIfChanged(card.select,isSelected?'Selected bot':'Select bot');
     card.copy.disabled=!safe;
@@ -431,8 +445,15 @@
     fleetVerified=isLive('bots');
     fleet=validateFleet(data,!fleetVerified);
     fleetGeneratedAt=time(data.generatedAt);
-    if(chosen===null&&fleetVerified)chosen=recommended(fleet)?.gamertag||null;
-    applyFleetStats();applyBotWidgets();renderRoster();updateActivityClocks();
+    // A recommendation is chosen only on the first verified page load or by a user action.
+    // Never silently switch the account just because later API snapshots recommend another.
+    if(!recommendationInitialized&&fleetVerified){
+      chosen=recommended(fleet)?.gamertag||null;
+      pinnedRecommendation=chosen;
+      manuallySelected=false;
+      recommendationInitialized=true;
+    }
+    applyFleetStats();applyBotWidgets();renderRoster();refreshFleetActivity();updateActivityClocks();
   }
   async function updateFleet() {
     if((!hasBotWidgets&&!hasRoster)||fleetBusy)return;
@@ -445,7 +466,8 @@
         fleetGeneratedAt=NaN;
         $$('[data-bot-name]').forEach(el=>el.textContent='Availability unavailable');
         $$('[data-bot-help]').forEach(el=>el.textContent='Cannot verify bot availability. Please try again shortly.');
-        $$('[data-bot-copy]').forEach(el=>{el.disabled=true;el.dataset.gamertag='';});
+        $('[data-bot-copy]').forEach(el=>{el.disabled=true;el.dataset.gamertag='';});
+        $('[data-bot-last-used]').forEach(el=>setIfChanged(el,'Recent activity unavailable'));
         setAll('[data-fleet-stat]','Unavailable');
         setAll('[data-fleet-updated]','Waiting for bot availability.');
         const note=$('fleetFreshness');if(note)note.textContent='Could not connect. Retrying automatically.';
@@ -465,7 +487,7 @@
   $('refreshBotChoice')?.addEventListener('click',()=>{
     if(!fleet||!fleetVerified){updateFleet();toast('Waiting to verify bot availability…');return;}
     const next=recommended(fleet,chosen);
-    if(next)chosen=next.gamertag;
+    if(next){chosen=next.gamertag;pinnedRecommendation=chosen;manuallySelected=false;recommendationInitialized=true;}
     applyBotWidgets();renderRoster();
     toast(next?'Recommendation changed to '+next.gamertag+'.':'No alternative available bot right now.');
   });
