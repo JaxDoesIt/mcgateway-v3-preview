@@ -281,14 +281,35 @@
   });
 
   const recentExists=$$('[data-recent]').length>0;
-  async function updateRecent(){if(!recentExists||document.hidden)return;
-    try{
-      const data=validateRecent(await fetchJSON('statistics'));
-      ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
-      setAll('#recentFreshness',previewDemo?.isDemo('statistics') ? 'Preview numbers only. Not actual transfer activity.' : 'Updated '+relative(data.generatedAt)+'.');
-    }catch(e){setAll('[data-recent]','Unavailable');setAll('#recentFreshness','Recent transfer totals cannot be retrieved right now.');}
+  function renderRecent(raw) {
+    const data=validateRecent(raw);
+    ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
+    setAll('#recentFreshness',isLive('statistics')?'Updated '+relative(data.generatedAt)+'.':'Connection delayed. Last verified '+verifiedTime('statistics')+'.');
+  }
+  let recentBusy=false;
+  async function updateRecent() {
+    if(!recentExists||document.hidden||recentBusy)return;
+    recentBusy=true;
+    try{renderRecent(await fetchJSON('statistics'));}
+    catch(error){
+      // Never replace a previously verified statistic with a fabricated or blank number.
+      $$('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
+      setAll('#recentFreshness','Could not connect to recent activity. Retrying automatically.');
+    }finally{recentBusy=false;}
+  }
+  function hydrateVerifiedData() {
+    // Show only previously verified values immediately on page refresh.
+    for(const kind of ['summary','bots','statistics']) {
+      const saved=lastVerified(kind);
+      if(!saved)continue;
+      markCached(kind,saved);
+      if(kind==='summary' && hasSummary)renderSummary(saved.data);
+      if(kind==='bots' && (hasBotWidgets||hasRoster))renderFleet(saved.data);
+      if(kind==='statistics' && recentExists)renderRecent(saved.data);
+    }
   }
   function refresh(){updateSummary();updateFleet();updateRecent();}
+  hydrateVerifiedData();
   refresh();
   // Keep request cadence modest; don't continue polling hidden tabs.
   setInterval(()=>{if(!document.hidden)updateSummary();},10000);
