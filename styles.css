@@ -393,7 +393,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 .ledger-transfer{padding-top:9px;border-top:1px solid #bca77d3b;min-width:0}
 .ledger-transfer-value{display:flex;align-items:center;gap:11px;margin-top:5px;min-height:29px}
 .ledger-transfer-value strong{font-size:29px;line-height:1;color:#f7e5c4;font-weight:780;font-variant-numeric:tabular-nums}
-.ledger-transfer-value span{font-size:10px;line-height:1.25;color:#afc8c3;font-weight:500}
+.ledger-transfer-value span{font-size:13px;line-height:1.25;color:#afc8c3;font-weight:500}
 .ledger-disclaimer,.ledger-description{font-size:12px}
 .bot-identity small{font-size:11px}
 @media(max-width:1060px){.ledger-transfer{border-top:0;border-left:1px solid #bca77d4e;padding:0 0 0 25px}}
