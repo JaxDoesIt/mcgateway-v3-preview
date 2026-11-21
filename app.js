@@ -259,13 +259,32 @@
   function byBotNumber(a,b) {
     return botNumber(a)-botNumber(b)||a.gamertag.localeCompare(b.gamertag);
   }
-  function recommended(snapshot,exclude=null){
-    const preferred=snapshot.bots.find(b=>b.gamertag===snapshot.recommendedBot?.gamertag&&b.status==='available'&&b.gamertag!==exclude);
-    return preferred||snapshot.bots.filter(b=>b.status==='available'&&b.gamertag!==exclude).sort((a,b)=>{
-      const aKnown=a.friends!=null,bKnown=b.friends!=null;
-      if(aKnown!==bKnown)return aKnown?-1:1;
-      return (a.friends??0)-(b.friends??0)||byBotNumber(a,b);
-    })[0]||null;
+  // Follow the authoritative API recommendation. If it is missing, mirror
+  // the server's activity-first policy rather than choosing the emptiest bot.
+  const ACTIVITY_BANDS_MS=[15000,60000,300000,900000];
+  function botLastActivityMs(bot) {
+    const times=[time(bot.lastRelayAt),time(bot.lastSuccessfulTransferAt)].filter(Number.isFinite);
+    return times.length?Math.max(...times):null;
+  }
+  function botActivityBand(bot,now) {
+    const at=botLastActivityMs(bot);
+    if(at==null)return ACTIVITY_BANDS_MS.length;
+    const band=ACTIVITY_BANDS_MS.findIndex(limit=>Math.max(0,now-at)<=limit);
+    return band<0?ACTIVITY_BANDS_MS.length:band;
+  }
+  function recommended(snapshot) {
+    const ceiling=Number.isSafeInteger(snapshot.recommendationPolicy?.friendCeiling)
+      ? snapshot.recommendationPolicy.friendCeiling:950;
+    const eligible=b=>b.status==='available'&&numeric(b.friends)&&b.friends<ceiling;
+    const preferred=snapshot.bots.find(b=>b.gamertag===snapshot.recommendedBot?.gamertag&&eligible(b));
+    if(preferred)return preferred;
+    const now=Date.now();
+    return snapshot.bots.filter(eligible).sort((a,b)=>
+      botActivityBand(a,now)-botActivityBand(b,now)
+      ||b.friends-a.friends
+      ||(botLastActivityMs(b)||0)-(botLastActivityMs(a)||0)
+      ||a.gamertag.localeCompare(b.gamertag)
+    )[0]||null;
   }
   function sortedBots(snapshot) {
     const preferred=pinnedRecommendation;
