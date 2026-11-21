@@ -1,6 +1,6 @@
-/* Digit-reel implementation copied unchanged from the current MCGateway website
-   (MCGateway-Website/main/public/app-core.js).
-   V3-only adapter below connects existing public API snapshots to those reels. */
+/* Digit-reel implementation based on the current MCGateway website.
+   Homepage keeps its original behavior. Statistics uses a quicker, reliably
+   settling reel for the light cards and large totals. */
 (() => {
   'use strict';
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -10,24 +10,68 @@
 function digitCharacters(value) { return formatNumber(value).split(''); }
 function makeStaticChar(char) { const span = document.createElement('span'); span.className = char === ',' ? 'rolling-separator' : 'rolling-digit static'; span.textContent = char; return span; }
 function makeRollingDigit(oldDigit, targetDigit, options = {}) {
+  const compact = options.compact === true;
   const slot = document.createElement('span'); slot.className = 'rolling-digit slot';
   const oldN = Number(oldDigit); const targetN = Number(targetDigit); let steps = (targetN - oldN + 10) % 10;
   if (steps === 0 && options.forceSpin) steps = 10; if (options.extraLoop) steps += 10;
   const track = document.createElement('span'); track.className = 'digit-track';
   for (let i = 0; i <= steps; i += 1) { const cell = document.createElement('span'); cell.textContent = String((oldN + i) % 10); track.appendChild(cell); }
   slot.appendChild(track);
-  const duration = Math.min(3900, 2050 + steps * 145 + (options.placeFromRight || 0) * 48);
-  if (steps >= 5 || options.extraLoop) { slot.classList.add('blur-spin'); slot.style.animationDuration = `${duration}ms`; }
-  requestAnimationFrame(() => requestAnimationFrame(() => { track.style.transitionDuration = `${duration}ms`; track.style.transform = `translateY(-${steps}em)`; }));
+  const duration = compact
+    ? Math.min(1350, 620 + steps * 72 + (options.placeFromRight || 0) * 19)
+    : Math.min(3900, 2050 + steps * 145 + (options.placeFromRight || 0) * 48);
+  if (!compact && (steps >= 5 || options.extraLoop)) {
+    slot.classList.add('blur-spin'); slot.style.animationDuration = `${duration}ms`;
+  }
+  if (compact) {
+    // A browser may pause or skip a transition when the tab is hidden.
+    // Always settle onto a clean final digit, even without transitionend.
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      track.removeEventListener('transitionend', onEnd);
+      if (!slot.isConnected) return;
+      slot.textContent = String(targetDigit);
+      slot.className = 'rolling-digit static';
+    };
+    const onEnd = event => {
+      if (event.target === track && event.propertyName === 'transform') finish();
+    };
+    track.addEventListener('transitionend', onEnd);
+    setTimeout(finish, duration + 160);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    track.style.transitionDuration = `${duration}ms`;
+    if (compact) track.style.transitionTimingFunction = 'cubic-bezier(.22,.64,.29,1)';
+    track.style.transform = `translateY(-${steps}em)`;
+  }));
   return { slot, duration };
 }
 
 function renderRollingNumber(element, newValue, oldValue = null, initial = false) {
   if (!element) return 0; const normalized = Math.max(0, Math.round(Number(newValue) || 0));
   if (element.hasAttribute('data-stat-static') || reduceMotion) { element.textContent = formatNumber(normalized); element.dataset.value = String(normalized); element.dataset.liveInitialized = 'true'; return 0; }
+  const compact = Boolean(element.closest?.('.statistics-page'));
   const current = oldValue ?? Number(element.dataset.value || 0); const targetChars = digitCharacters(normalized); const oldDigitsRaw = String(Math.max(0, Math.round(Number(current) || 0))); const targetDigitsRaw = String(normalized); const oldDigits = oldDigitsRaw.padStart(targetDigitsRaw.length, '0'); let digitIndex = 0; let longestDuration = 0;
   element.replaceChildren();
-  targetChars.forEach((char) => { if (char === ',') { element.appendChild(makeStaticChar(',')); return; } const oldDigit = oldDigits[digitIndex] ?? '0'; const placeFromRight = targetDigitsRaw.length - digitIndex - 1; const changed = oldDigit !== char; if (changed || initial) { const reel = makeRollingDigit(oldDigit, char, { forceSpin: initial && oldDigit === char, extraLoop: initial && placeFromRight < 2, placeFromRight }); longestDuration = Math.max(longestDuration, reel.duration); element.appendChild(reel.slot); } else element.appendChild(makeStaticChar(char)); digitIndex += 1; });
+  targetChars.forEach((char) => {
+    if (char === ',') { element.appendChild(makeStaticChar(',')); return; }
+    const oldDigit = oldDigits[digitIndex] ?? '0'; const placeFromRight = targetDigitsRaw.length - digitIndex - 1; const changed = oldDigit !== char;
+    if (changed || (initial && !compact)) {
+      const reel = makeRollingDigit(oldDigit, char, {
+        compact,
+        forceSpin: !compact && initial && oldDigit === char,
+        extraLoop: !compact && initial && placeFromRight < 2,
+        placeFromRight
+      });
+      longestDuration = Math.max(longestDuration, reel.duration);
+      element.appendChild(reel.slot);
+    } else {
+      element.appendChild(makeStaticChar(char));
+    }
+    digitIndex += 1;
+  });
   element.dataset.value = String(normalized); element.dataset.liveInitialized = 'true'; return longestDuration;
 }
 

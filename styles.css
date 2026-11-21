@@ -660,3 +660,13 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
   .statistics-page .status-detail-grid>div:last-child{border-bottom:0!important}
   .statistics-page .stat-big strong{font-size:31px}
 }
+
+
+/* Statistics numbers: match separator ink to the parchment cards. Dark cards keep their sky-blue commas. */
+.statistics-page .three-stats .rolling-separator{
+  color:#526b5a;
+}
+.statistics-page .rolling-digit.slot{
+  overflow:hidden;
+  contain:paint;
+}
