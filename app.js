@@ -100,7 +100,7 @@
   }
   function renderLastTransferAge(at) {
     // Keep the number and its smaller unit separate, like the Access Fleet count.
-    for(const el of $('[data-live="lastTransfer"]')) {
+    for(const el of document.querySelectorAll('[data-live="lastTransfer"]')) {
       const number=el.querySelector('[data-transfer-age-number]');
       const unit=el.querySelector('[data-transfer-age-unit]');
       if(!number||!unit)continue;
