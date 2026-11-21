@@ -124,7 +124,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 
 /* Inner pages get a field-manual cover and a quiet paper landscape below it. */
 .inner-hero{min-height:318px;position:relative;isolation:isolate;overflow:hidden;background:#0d2a37;color:#f6f4e9;border-bottom:4px solid #2b8492}
-.inner-hero-art{position:absolute;inset:0 0 0 34%;z-index:-2;background:url('assets/island-concept.jpg') 50% 46%/cover no-repeat;opacity:.79;filter:saturate(1.1)}
+.inner-hero-art{position:absolute;inset:0 0 0 34%;z-index:-2;background:url('assets/current-hub-hero.jpg') 50% 50%/cover no-repeat;opacity:.9;filter:saturate(1.12) contrast(1.04)}
 .inner-hero:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#071d2b 0%,#082a38 39%,#0b2a34a8 63%,#0b283519),linear-gradient(0deg,#081721c4,transparent 33%)}
 .inner-hero-wrap{width:min(calc(100% - 72px),var(--content));margin:auto;padding:46px 0 55px;position:relative;z-index:2}
 .inner-hero h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(42px,5.2vw,75px);letter-spacing:-.055em;line-height:1.06;max-width:830px;margin:20px 0 15px;text-shadow:0 3px 12px #00151f99}
