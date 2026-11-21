@@ -549,9 +549,9 @@
   function renderRecent(raw) {
     const data=validateRecent(raw);
     ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
-    for(const [key,days] of [['last7Days',7],['last30Days',30]]){
-      const avg=Math.round(data.transfers[key].transfers/days);
-      setAll(`[data-recent-average="${key}"]`,format(avg)+' transfers per day on average');
+    for(const [key,period,unit] of [['last24Hours',24,'hour'],['last7Days',7,'day'],['last30Days',30,'day']]){
+      const avg=Math.round(data.transfers[key].transfers/period);
+      setAll(`[data-recent-average="${key}"]`,format(avg)+' transfers per '+unit+' on average');
     }
     setAll('#recentFreshness',isLive('statistics')?'Updated '+relative(data.generatedAt)+'.':'Connection delayed. Last verified '+verifiedTime('statistics')+'.');
   }
