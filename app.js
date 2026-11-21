@@ -104,6 +104,12 @@
       const number=el.querySelector('[data-transfer-age-number]');
       const unit=el.querySelector('[data-transfer-age-unit]');
       if(!number||!unit)continue;
+      if(statisticsPage&&!summaryIsCurrent()) {
+        if(number.textContent!=='...')number.textContent='...';
+        if(unit.textContent!=='Unverified')unit.textContent='Unverified';
+        el.setAttribute('aria-label','Last recorded transfer unverified');
+        continue;
+      }
       if(!Number.isFinite(at)) {
         number.textContent='...';
         unit.textContent='Unavailable';
@@ -130,6 +136,7 @@
         : 'Live feed delayed · last verified '+elapsedDescription(summaryGeneratedAt)+'.');
       if(!fresh)document.querySelectorAll('[data-gateway-status]').forEach(el=>{el.textContent='Status unverified';el.dataset.status='checking';});
     }
+    hideUnverifiedLiveStatistics();
     if(fleet&&Number.isFinite(fleetGeneratedAt)) {
       const age=Date.now()-fleetGeneratedAt, fresh=age>=-60000&&age<=180000;
       if(fleetVerified&&!fresh){fleetVerified=false;applyFleetStats();applyBotWidgets();renderRoster();}
@@ -217,11 +224,25 @@
   }));
 
   // Live summary: lifetime totals, Hub population, service condition.
-  const hasSummary=$$('[data-stat], [data-live], [data-gateway-status]').length>0;
+  const statisticsPage=Boolean(document.body?.classList.contains('statistics-page'));
+  const hasSummary=$('[data-stat], [data-live], [data-gateway-status]').length>0;
+  function summaryIsCurrent() {
+    const age=Date.now()-summaryGeneratedAt;
+    return isLive('summary')&&Number.isFinite(age)&&age>=-60000&&age<=180000;
+  }
+  function hideUnverifiedLiveStatistics() {
+    if(!statisticsPage||summaryIsCurrent())return;
+    const players=document.querySelector('[data-live="hubPlayers"]');
+    if(players&&players.textContent!=='Unverified')setAll('[data-live="hubPlayers"]','Unverified');
+    $('[data-gateway-status]').forEach(el=>{
+      if(el.textContent!=='Status unverified')el.textContent='Status unverified';
+      el.dataset.status='checking';
+    });
+  }
   function renderSummary(raw) {
     const data=validateSummary(raw);
     for(const k of ['transfers','uniquePlayers','trackedServers'])setAll(`[data-stat="${k}"]`,format(data.totals[k]));
-    setAll('[data-live="hubPlayers"]',format(data.live.playersInHub));
+    setAll('[data-live="hubPlayers"]',!statisticsPage||isLive('summary')&&Date.now()-time(data.generatedAt)<=180000&&Date.now()-time(data.generatedAt)>=-60000?format(data.live.playersInHub):'Unverified');
     summaryGeneratedAt=time(data.generatedAt);
     lastTransferAt=time(data.live.lastTransferAt);
     const state=typeof data.status.state==='string'?data.status.state:'checking';
@@ -239,6 +260,7 @@
     catch(error){
       summaryGeneratedAt=NaN;lastTransferAt=NaN;
       renderLastTransferAge(NaN);
+      if(statisticsPage)setAll('[data-live="hubPlayers"]','Unverified');
       setAll('#summaryFreshness','Could not connect to live statistics. Retrying automatically.');
       $$('[data-gateway-status]').forEach(el=>{el.textContent='Status unavailable';el.dataset.status='checking';});
       $$('[data-stat]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
@@ -248,6 +270,7 @@
   // Read-only current bot fleet with session-locked recommendation.
   const hasBotWidgets=$$('[data-live-bot-widget]').length>0;
   const hasRoster=Boolean($('botRoster'));
+  const hasFleetCount=$('[data-bot-count]').length>0;
   let fleet=null, chosen=null, sort=$('botSort')?.value||'order', availableOnly=false, fleetVerified=false, fleetBusy=false, recommendationInitialized=false, manuallySelected=false, pinnedRecommendation=null;
   const rosterCards=new Map();
   function botNumber(bot) {
@@ -321,7 +344,8 @@
   function applyFleetStats() {
     if(!fleet)return;
     for(const k of ['available','nearCapacity','full','offline','checking'])setAll('[data-fleet-stat="'+k+'"]',format(fleet.counts[k]));
-    setAll('[data-bot-count]',format(fleet.counts.total));
+    setAll('[data-bot-count]',statisticsPage&&!fleetVerified?'Unverified':format(fleet.counts.total));
+    if(statisticsPage)setAll('[data-bot-freshness]',fleetVerified?'Current fleet total':'Fleet total not currently verified');
     const summary=$('fleetSummary');
     if(summary)setIfChanged(summary,fleetVerified
       ? format(fleet.counts.available)+' of '+format(fleet.counts.total)+' access bots currently available'
@@ -475,7 +499,7 @@
     applyFleetStats();applyBotWidgets();renderRoster();refreshFleetActivity();updateActivityClocks();
   }
   async function updateFleet() {
-    if((!hasBotWidgets&&!hasRoster)||fleetBusy)return false;
+    if((!hasBotWidgets&&!hasRoster&&!hasFleetCount)||fleetBusy)return false;
     fleetBusy=true;
     try{renderFleet(await fetchJSON('bots'));return fleetVerified;}
     catch(error){
@@ -488,6 +512,8 @@
         document.querySelectorAll('[data-bot-copy]').forEach(el=>{el.disabled=true;el.dataset.gamertag='';});
         document.querySelectorAll('[data-bot-last-used]').forEach(el=>setIfChanged(el,'Recent activity unavailable'));
         setAll('[data-fleet-stat]','Unavailable');
+        setAll('[data-bot-count]','Unavailable');
+        setAll('[data-bot-freshness]','Could not verify the fleet');
         setAll('[data-fleet-updated]','Waiting for bot availability.');
         const note=$('fleetFreshness');if(note)note.textContent='Could not connect. Retrying automatically.';
         const summary=$('fleetSummary');if(summary)summary.textContent='Live fleet data is unavailable right now.';
@@ -523,6 +549,10 @@
   function renderRecent(raw) {
     const data=validateRecent(raw);
     ['last24Hours','last7Days','last30Days'].forEach(key=>setAll(`[data-recent="${key}"]`,format(data.transfers[key].transfers)));
+    for(const [key,days] of [['last7Days',7],['last30Days',30]]){
+      const avg=Math.round(data.transfers[key].transfers/days);
+      setAll(`[data-recent-average="${key}"]`,format(avg)+' transfers per day on average');
+    }
     setAll('#recentFreshness',isLive('statistics')?'Updated '+relative(data.generatedAt)+'.':'Connection delayed. Last verified '+verifiedTime('statistics')+'.');
   }
   let recentBusy=false;
@@ -532,7 +562,8 @@
     try{renderRecent(await fetchJSON('statistics'));}
     catch(error){
       // Never replace a previously verified statistic with a fabricated or blank number.
-      $$('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
+      $('[data-recent]').forEach(el=>{if(el.textContent.includes('Connecting'))el.textContent='Unavailable';});
+      $('[data-recent-average]').forEach(el=>{if(el.textContent.includes('Checking'))el.textContent='Daily average unavailable';});
       setAll('#recentFreshness','Could not connect to recent activity. Retrying automatically.');
     }finally{recentBusy=false;}
   }
@@ -544,7 +575,7 @@
       markCached(kind,saved);
       try {
         if(kind==='summary' && hasSummary)renderSummary(saved.data);
-        if(kind==='bots' && (hasBotWidgets||hasRoster))renderFleet(saved.data);
+        if(kind==='bots' && (hasBotWidgets||hasRoster||hasFleetCount))renderFleet(saved.data);
         if(kind==='statistics' && recentExists)renderRecent(saved.data);
       } catch(error) {
         // A bad cached snapshot must never stop independent live API requests.
