@@ -132,7 +132,7 @@
     }
     if(fleet&&Number.isFinite(fleetGeneratedAt)) {
       const age=Date.now()-fleetGeneratedAt, fresh=age>=-60000&&age<=180000;
-      if(fleetVerified&&!fresh){fleetVerified=false;applyBotWidgets();renderRoster();}
+      if(fleetVerified&&!fresh){fleetVerified=false;applyFleetStats();applyBotWidgets();renderRoster();}
       setAll('[data-fleet-updated]',fleetVerified&&fresh
         ? 'Fleet checked '+elapsedDescription(fleetGeneratedAt)+'.'
         : 'Fleet availability unverified · last checked '+elapsedDescription(fleetGeneratedAt)+'.');
