@@ -25,7 +25,7 @@
   }
   function setAll(selector,value) {
     const label=String(value);
-    $(selector).forEach(el=>{
+    $$(selector).forEach(el=>{
       const useReel=el.matches('[data-stat],[data-recent],[data-live="hubPlayers"]') && Boolean(window.MCGatewayRoll);
       if(useReel){
         const valid=/^[0-9][0-9,]*$/.test(label);
