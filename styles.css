@@ -427,3 +427,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
  .home-page .bot-identity small{font-size:10px}
  .home-page .bot-preview-badge{font-size:9px}
 }
+
+/* Quiet closing note for the restored future teaser. */
+.future-whisper-footnote{display:block;margin-top:13px;font-size:12px;letter-spacing:.025em;color:#756a54;font-weight:650}
