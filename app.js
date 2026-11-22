@@ -387,7 +387,7 @@
     const selectedGuideBot=fleet?.bots.find(b=>b.gamertag===chosen);
     const guideName=fleetVerified&&selectedGuideBot?.status==='available'
       ? selectedGuideBot.gamertag : 'the recommended bot shown above';
-    $('[data-guide-bot-name]').forEach(node=>setIfChanged(node,guideName));
+    document.querySelectorAll('[data-guide-bot-name]').forEach(node=>setIfChanged(node,guideName));
   }
   async function copyGamertag(gamertag,button,label) {
     const current=fleetVerified&&fleet?.bots.find(b=>b.gamertag===gamertag&&b.status==='available');
