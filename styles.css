@@ -534,63 +534,89 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #24
 .bots-page .body-note{font-size:12px;line-height:1.6;margin-top:20px;color:#625a4b}
 
 
-/* Bots recommendation: make the actual account the headline. */
-.bots-page .inline-bot-widget{
+/* Shared Bots and homepage recommendation artwork. */
+:is(.bots-page,.home-page) .inline-bot-widget{
   grid-template-columns:minmax(0,1fr) auto;align-items:center;
   column-gap:36px;row-gap:20px;padding:30px clamp(24px,3vw,40px);
   border-color:#4d8a8b;
   background:radial-gradient(ellipse at 14% 0%,#23656b4f,transparent 58%),linear-gradient(127deg,#123b48,#08222e 92%);
 }
-.bots-page .recommended-bot-details{min-width:0}
-.bots-page .recommended-bot-topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.bots-page .recommended-bot-topline .micro-label{font-size:11px;letter-spacing:.13em;font-weight:840;text-transform:uppercase}
-.bots-page .inline-bot-widget h3[data-bot-name]{
+:is(.bots-page,.home-page) .recommended-bot-details{min-width:0}
+:is(.bots-page,.home-page) .recommended-bot-topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+:is(.bots-page,.home-page) .recommended-bot-topline .micro-label{font-size:11px;letter-spacing:.13em;font-weight:840;text-transform:uppercase}
+:is(.bots-page,.home-page) .inline-bot-widget h3[data-bot-name]{
   font-family:Georgia,'Times New Roman',serif;
   font-size:clamp(36px,4.2vw,58px);font-weight:700;
   letter-spacing:-.052em;line-height:1.1;color:#fff1d7;
   overflow-wrap:anywhere;margin:13px 0 9px;
 }
-.bots-page .recommended-bot-status{
+:is(.bots-page,.home-page) .recommended-bot-status{
   font-size:10px;font-weight:850;letter-spacing:.065em;
   border:1px solid #c1a97875;background:#c1a97826;color:#e8d0a0;
   border-radius:100px;padding:5px 9px;white-space:nowrap;
 }
-.bots-page .recommended-bot-status[data-status="available"]{background:#285e495e;border-color:#72bf8f80;color:#a5efbf}
-.bots-page .recommended-bot-status[data-status="full"],
-.bots-page .recommended-bot-status[data-status="offline"]{background:#79493c69;border-color:#d58a6e80;color:#f6bca6}
-.bots-page .recommended-bot-status[data-status="near_capacity"]{background:#775c2f75;border-color:#d3ad6b8c;color:#f4d3a0}
-.bots-page .recommended-bot-details p[data-bot-help]{color:#c4d5cf;font-size:14px;line-height:1.55;max-width:540px;margin:0 0 10px}
-.bots-page .recommended-bot-details .bot-activity{display:block;font-size:12px;line-height:1.5;color:#a9ccc5;margin:0}
-.bots-page .inline-bot-actions{min-width:205px;max-width:245px;align-items:stretch;gap:16px}
-.bots-page .inline-bot-actions .small-copy{min-height:48px;align-items:center;justify-content:center;font-size:13px;padding:11px 19px}
-.bots-page .recommended-bot-links{display:flex;align-items:flex-start;flex-direction:column;gap:12px}
-.bots-page .recommendation-refresh{
+:is(.bots-page,.home-page) .recommended-bot-status[data-status="available"]{background:#285e495e;border-color:#72bf8f80;color:#a5efbf}
+:is(.bots-page,.home-page) .recommended-bot-status[data-status="full"],
+:is(.bots-page,.home-page) .recommended-bot-status[data-status="offline"]{background:#79493c69;border-color:#d58a6e80;color:#f6bca6}
+:is(.bots-page,.home-page) .recommended-bot-status[data-status="near_capacity"]{background:#775c2f75;border-color:#d3ad6b8c;color:#f4d3a0}
+:is(.bots-page,.home-page) .recommended-bot-details p[data-bot-help]{color:#c4d5cf;font-size:14px;line-height:1.55;max-width:540px;margin:0 0 10px}
+:is(.bots-page,.home-page) .recommended-bot-details .bot-activity{display:block;font-size:12px;line-height:1.5;color:#a9ccc5;margin:0}
+:is(.bots-page,.home-page) .inline-bot-actions{min-width:205px;max-width:245px;align-items:stretch;gap:16px}
+:is(.bots-page,.home-page) .inline-bot-actions .small-copy{min-height:48px;align-items:center;justify-content:center;font-size:13px;padding:11px 19px}
+:is(.bots-page,.home-page) .recommended-bot-links{display:flex;align-items:flex-start;flex-direction:column;gap:12px}
+:is(.bots-page,.home-page) .recommendation-refresh{
   background:none;border:0;padding:0;font:inherit;font-size:12px;
   font-weight:760;line-height:1.4;color:#b2f2e9;text-decoration:underline;
   text-underline-offset:4px;text-align:left;cursor:pointer;
 }
-.bots-page .recommendation-refresh:hover,.bots-page .mini-text-link:hover{color:#fff5dc}
-.bots-page .recommendation-refresh:focus-visible,
-.bots-page .inline-bot-actions .small-copy:focus-visible,
-.bots-page .mini-text-link:focus-visible{outline:2px solid #76e7de;outline-offset:5px}
-.bots-page .inline-bot-actions .mini-text-link{
+:is(.bots-page,.home-page) .recommendation-refresh:hover,:is(.bots-page,.home-page) .mini-text-link:hover{color:#fff5dc}
+:is(.bots-page,.home-page) .recommendation-refresh:focus-visible,
+:is(.bots-page,.home-page) .inline-bot-actions .small-copy:focus-visible,
+:is(.bots-page,.home-page) .mini-text-link:focus-visible{outline:2px solid #76e7de;outline-offset:5px}
+:is(.bots-page,.home-page) .inline-bot-actions .mini-text-link{
   text-decoration:none;border-bottom:1px solid #81c6c4a3;padding-bottom:2px;
   font-size:12px;display:inline-flex;align-items:center;gap:6px;
 }
 @media(max-width:900px){
-  .bots-page .inline-bot-widget{grid-template-columns:1fr}
-  .bots-page .inline-bot-actions{min-width:0;max-width:none;align-items:flex-start}
-  .bots-page .inline-bot-actions .small-copy{min-width:194px}
-  .bots-page .recommended-bot-links{flex-direction:row;flex-wrap:wrap;gap:13px 23px}
+  :is(.bots-page,.home-page) .inline-bot-widget{grid-template-columns:1fr}
+  :is(.bots-page,.home-page) .inline-bot-actions{min-width:0;max-width:none;align-items:flex-start}
+  :is(.bots-page,.home-page) .inline-bot-actions .small-copy{min-width:194px}
+  :is(.bots-page,.home-page) .recommended-bot-links{flex-direction:row;flex-wrap:wrap;gap:13px 23px}
 }
 @media(max-width:520px){
-  .bots-page .inline-bot-widget{padding:23px 19px}
-  .bots-page .inline-bot-widget h3[data-bot-name]{font-size:clamp(35px,9.5vw,45px)}
-  .bots-page .inline-bot-actions .small-copy{width:100%}
-  .bots-page .recommended-bot-links{gap:12px 17px}
+  :is(.bots-page,.home-page) .inline-bot-widget{padding:23px 19px}
+  :is(.bots-page,.home-page) .inline-bot-widget h3[data-bot-name]{font-size:clamp(35px,9.5vw,45px)}
+  :is(.bots-page,.home-page) .inline-bot-actions .small-copy{width:100%}
+  :is(.bots-page,.home-page) .recommended-bot-links{gap:12px 17px}
 }
 
 
+
+/* The homepage uses the identical bot card styling in a narrower column. */
+.home-page .home-recommended-bot{
+  grid-template-columns:minmax(0,1fr);
+  row-gap:17px;
+  padding:22px clamp(16px,2vw,24px);
+  margin:15px 0 0;
+}
+.home-page .home-recommended-bot h3[data-bot-name]{
+  font-size:clamp(34px,3.25vw,47px);
+}
+.home-page .home-recommended-bot .inline-bot-actions{
+  min-width:0;max-width:none;align-items:flex-start;
+}
+.home-page .home-recommended-bot .inline-bot-actions .small-copy{
+  min-width:170px;
+}
+.home-page .home-recommended-bot .recommended-bot-links{
+  flex-direction:row;flex-wrap:wrap;gap:11px 20px;
+}
+@media(max-width:520px){
+  .home-page .home-recommended-bot{padding:19px 16px}
+  .home-page .home-recommended-bot h3[data-bot-name]{font-size:clamp(31px,9vw,40px)}
+  .home-page .home-recommended-bot .inline-bot-actions,
+  .home-page .home-recommended-bot .inline-bot-actions .small-copy{width:100%}
+}
 /* Statistics: clearer live truth, real-time activity and responsive values. */
 .statistics-page .content-intro p{max-width:750px}
 .statistics-page .stats-major{margin-bottom:9px}
