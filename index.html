@@ -8,7 +8,7 @@
 <meta content="MCGateway is a free Minecraft Bedrock gateway. Add an access bot through Friends and join custom servers from Xbox, PlayStation, or Nintendo Switch without changing DNS." name="description"/>
 <title>MCGateway | Join Custom Minecraft Bedrock Servers from Console</title>
 <link href="assets/mcgateway-original-logo.png" rel="icon" type="image/png"/>
-<link href="styles.css?v=20261121-hub-headers" rel="stylesheet"/>
+<link href="styles.css?v=20261122-home-bot-match" rel="stylesheet"/>
 <script defer src="rolling-numbers.js"></script><script defer="" src="app.js?v=20261121-activity-recommendation"></script>
 <meta content="MCGateway" property="og:site_name"/><meta content="website" property="og:type"/><meta content="MCGateway | Explore beyond the server list" property="og:title"/><meta content="MCGateway is a free Minecraft Bedrock gateway. Add an access bot through Friends and join custom servers from Xbox, PlayStation, or Nintendo Switch without changing DNS." property="og:description"/><meta content="https://jaxdoesit.github.io/mcgateway-v3-preview/assets/social-card.jpg" property="og:image"/><meta content="summary_large_image" name="twitter:card"/></head>
 <body class="home-page">
@@ -59,8 +59,21 @@
 <div class="eyebrow"><svg class="icon"><use href="#i-server"></use></svg> ACCESS BOT TOOL <span class="ink-rule"></span></div>
 <h2 id="botHeading">Your first step:<br/><span>find a bot.</span></h2>
 <p class="body-intro">Add an MCGateway account as a friend, then enter the Hub when it appears.</p>
-<div aria-label="Recommended MCGateway access bot" class="bot-tool" data-live-bot-widget=""><div aria-hidden="true" class="bot-avatar">MG</div><div class="bot-identity"><strong data-bot-name="">Checking availability…</strong><small data-bot-help="">Connecting to the MCGateway bot fleet</small><small class="bot-activity" data-bot-last-used="">Checking recent activity…</small></div><span class="bot-preview-badge" data-bot-state="">CHECKING</span><button aria-label="Copy recommended gamertag" class="bot-copy" data-bot-copy="" disabled="" type="button"><svg class="icon"><use href="#i-copy"></use></svg><span data-copy-label="">Copy</span></button></div>
-<a class="ink-link" href="bots.html">See the complete live bot fleet <svg class="icon"><use href="#i-arrow"></use></svg></a>
+<section aria-label="Recommended MCGateway access bot" class="inline-bot-widget home-recommended-bot" data-live-bot-widget="">
+<div class="recommended-bot-details">
+<div class="recommended-bot-topline"><span class="micro-label" data-bot-heading="">Recommended bot</span><span class="recommended-bot-status" data-bot-state="" data-status="checking">CHECKING</span></div>
+<h3 data-bot-name="">Checking availability…</h3>
+<p data-bot-help="">Looking for an available MCGateway bot.</p>
+<small class="bot-activity" data-bot-last-used="">Checking recent activity…</small>
+</div>
+<div class="inline-bot-actions">
+<button class="small-copy" data-bot-copy="" disabled="" type="button"><span data-copy-label="">Copy bot name</span><svg aria-hidden="true" class="icon"><use href="#i-copy"></use></svg></button>
+<div class="recommended-bot-links">
+<button class="recommendation-refresh" id="refreshBotChoice" type="button">Update recommendation</button>
+<a class="mini-text-link" href="bots.html">Browse all bots <svg aria-hidden="true" class="icon"><use href="#i-arrow"></use></svg></a>
+</div>
+</div>
+</section>
 </section>
 <section aria-labelledby="pathHeading" class="path-section" id="journey">
 <div class="eyebrow"><svg class="icon"><use href="#i-compass"></use></svg> THE JOINING PROCESS <span class="ink-rule"></span></div>
